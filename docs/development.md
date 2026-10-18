@@ -14,7 +14,7 @@ python -m pip install PyQt6
 Launch from the repository root so Python can import `core` and `plugins`:
 
 ```bash
-python explorer.py
+python macXplorer.py
 ```
 
 ## Repository layout
@@ -24,8 +24,8 @@ core/                 Application shell, reusable widgets, plugin manager, theme
 plugins/              Built-in plugins and plugin contract
 tests/                unittest integration and behavior tests
 docs/                 User, architecture, development, and reference documents
-explorer.py           Application entry point
-MacExplorer.spec      PyInstaller application-bundle definition
+macXplorer.py         Application entry point
+macXplorer.spec       PyInstaller application-bundle definition (outputs macXplorer.app)
 ```
 
 ## Adding a plugin
@@ -35,7 +35,7 @@ MacExplorer.spec      PyInstaller application-bundle definition
 3. Return menu actions from `register_menu_actions()` if the plugin needs a menu entry.
 4. Use a stable, unique `plugin_id`.
 5. Add tests for registration and plugin behavior.
-6. Add the module to `plugins/__init__.py` and `MacExplorer.spec` if the plugin is built into the frozen application.
+6. Add the module to `plugins/__init__.py` and `macXplorer.spec` if the plugin is built into the frozen application.
 7. Run the full test suite.
 
 Keep plugins focused. Core-level state and shared file operations belong in the core; feature-specific interfaces and logic belong in plugins.
@@ -51,7 +51,7 @@ QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -v
 Compile-check Python source:
 
 ```bash
-python -m compileall -q core plugins explorer.py tests
+python -m compileall -q core plugins macXplorer.py tests
 ```
 
 There is no project-configured formatter or static type checker at this time. If one is introduced, configure it in the project and document its invocation here.
@@ -62,10 +62,10 @@ Install PyInstaller in the active virtual environment and build:
 
 ```bash
 python -m pip install pyinstaller
-pyinstaller --noconfirm MacExplorer.spec
+pyinstaller --noconfirm macXplorer.spec
 ```
 
-The bundle is written to `dist/MacExplorer.app`. Test the bundle on a clean macOS account and verify folder privacy permissions, plugin loading, Finder integration, and file operations before release. Configure code signing and notarization separately.
+The bundle is written to `dist/macXplorer.app`. Test the bundle on a clean macOS account and verify folder privacy permissions, plugin loading, Finder integration, and file operations before release. Configure code signing and notarization separately.
 
 ## Contribution expectations
 

@@ -34,7 +34,7 @@ from core.widgets import FilePane, WorkspaceTab
 LOGGER = logging.getLogger(__name__)
 
 
-class MacExplorer(QMainWindow):
+class MacXplorer(QMainWindow):
     """Application shell and shared services used by feature plugins."""
 
     fileSelected = pyqtSignal(str)
@@ -42,12 +42,12 @@ class MacExplorer(QMainWindow):
     def __init__(self, settings: QSettings | None = None) -> None:
         application = QApplication.instance()
         if application is not None:
-            application.setApplicationName("MacExplorer")
-            application.setApplicationDisplayName("MacExplorer")
+            application.setApplicationName("macXplorer")
+            application.setApplicationDisplayName("macXplorer")
             application.setOrganizationName("MacExplorer")
             application.setFont(QFont("Helvetica Neue"))
         super().__init__()
-        self.setWindowTitle("MacExplorer")
+        self.setWindowTitle("macXplorer")
         self.resize(1280, 800)
         self.settings = settings if settings is not None else QSettings("MacExplorer", "MacExplorer")
         self.clipboard_paths: list[Path] = []
@@ -67,7 +67,7 @@ class MacExplorer(QMainWindow):
     def current_workspace(self) -> WorkspaceTab:
         workspace = self.workspaces.currentWidget()
         if not isinstance(workspace, WorkspaceTab):
-            raise RuntimeError("MacExplorer has no active workspace.")
+            raise RuntimeError("macXplorer has no active workspace.")
         return workspace
 
     @property
@@ -273,14 +273,14 @@ class MacExplorer(QMainWindow):
         self.close_tab(self.workspaces.currentIndex())
 
     def new_window(self) -> None:
-        app_script = Path(__file__).resolve().parent.parent / "explorer.py"
+        app_script = Path(__file__).resolve().parent.parent / "macXplorer.py"
         command = [sys.executable]
         if not getattr(sys, "frozen", False):
             command.append(str(app_script))
         try:
             subprocess.Popen(command, close_fds=True)
         except OSError as error:
-            LOGGER.exception("Unable to open a new MacExplorer window")
+            LOGGER.exception("Unable to open a new macXplorer window")
             QMessageBox.critical(self, "New Window", f"Could not open a new window: {error}")
 
     def _on_tab_double_clicked(self, index: int) -> None:

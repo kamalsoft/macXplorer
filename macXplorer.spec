@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['explorer.py'],
+    ['macXplorer.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -26,7 +26,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='MacExplorer',
+    name='macXplorer',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -45,11 +45,11 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='MacExplorer',
+    name='macXplorer',
 )
 app = BUNDLE(
     coll,
-    name='MacExplorer.app',
+    name='macXplorer.app',
     icon=None,
     bundle_identifier=None,
 )

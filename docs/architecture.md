@@ -2,12 +2,12 @@
 
 ## System context
 
-MacExplorer is a desktop application implemented in Python with PyQt6. It uses Qt widgets and models for its user interface and local file-system browsing. macOS-specific integration includes the process display name and Finder operations such as moving items to Trash and revealing files.
+macXplorer is a desktop application implemented in Python with PyQt6. It uses Qt widgets and models for its user interface and local file-system browsing. macOS-specific integration includes the process display name and Finder operations such as moving items to Trash and revealing files.
 
 ```text
-explorer.py
+macXplorer.py
   QApplication and macOS process identity
-  MacExplorer (core/main_window.py)
+  MacXplorer (core/main_window.py; main-window class)
     PluginManager
     QTabWidget
       WorkspaceTab (one per tab)
@@ -26,8 +26,8 @@ The core owns application-level state and common operations. Plugins contribute 
 
 ## Runtime lifecycle
 
-1. `explorer.py` sets the native macOS process name when running on macOS, creates `QApplication`, and sets application identity.
-2. `MacExplorer` builds its menus, plugin toolbar, search field, and initial workspace.
+1. `macXplorer.py` sets the native macOS process name when running on macOS, creates `QApplication`, and sets application identity.
+2. `MacXplorer` builds its menus, plugin toolbar, search field, and initial workspace. The user-facing application name is `macXplorer`.
 3. `PluginManager` discovers Python modules under `plugins/`, also including the built-in module list for frozen builds.
 4. Each plugin class is instantiated, checked for metadata, initialized with the core application, and asked for toolbar and menu actions.
 5. The core enters the Qt event loop.
@@ -38,7 +38,7 @@ Plugin import, initialization, or registration failures are logged and collected
 
 | Component | Responsibility |
 | --- | --- |
-| `explorer.py` | Process identity, `QApplication` setup, event-loop entry point. |
+| `macXplorer.py` | Process identity, `QApplication` setup, event-loop entry point. |
 | `core/main_window.py` | Main window, tabs, active pane, menus, settings application, clipboard state, search, navigation actions, and common file operations. |
 | `core/widgets.py` | `FilePane`, focus-aware views and path entry, file-system model/proxy, per-pane history, image filtering, and `WorkspaceTab`. |
 | `core/plugin_manager.py` | Plugin discovery, validation, initialization, and registration of toolbar/menu actions. |
@@ -62,20 +62,20 @@ The main search field applies a fixed string filter to each open pane's proxy mo
 Plugins subclass `BasePlugin` in `plugins/base.py` and implement:
 
 ```python
-def initialize(self, core_app: MacExplorer) -> None: ...
+def initialize(self, core_app: MacXplorer) -> None: ...
 def register_toolbar_actions(self) -> Sequence[QAction]: ...
 def get_metadata(self) -> PluginMetadata: ...
 ```
 
 Plugins can optionally implement `register_menu_actions()` and return a mapping of menu titles to action sequences. `PluginMetadata` contains `plugin_id`, `name`, `description`, and `menu`.
 
-The manager validates metadata and verifies registered actions are `QAction` objects. Plugin IDs must be unique. Modules are discovered from the `plugins` package; `plugins/__init__.py` also lists built-ins explicitly for frozen bundle compatibility. New built-in plugins must be added to that list and to `MacExplorer.spec` hidden imports when needed by PyInstaller's analysis.
+The manager validates metadata and verifies registered actions are `QAction` objects. Plugin IDs must be unique. Modules are discovered from the `plugins` package; `plugins/__init__.py` also lists built-ins explicitly for frozen bundle compatibility. New built-in plugins must be added to that list and to `macXplorer.spec` hidden imports when needed by PyInstaller's analysis.
 
 Plugins receive the core window object. They should use its public properties and signals where possible, avoid owning core lifecycle state, and release signal connections or widgets when the core closes.
 
 ## Settings and persistence
 
-The core constructs `QSettings("MacExplorer", "MacExplorer")`. Current keys include:
+The core constructs `QSettings("MacExplorer", "MacExplorer")`. These existing identifiers are intentionally retained across the `macXplorer` display-name change so existing preferences remain available. Current keys include:
 
 | Key | Meaning |
 | --- | --- |
@@ -92,7 +92,7 @@ The settings dialog validates startup directories before saving and calls `sync(
 
 ## Clipboard and file operations
 
-MacExplorer keeps an internal list of clipboard paths and whether the operation is copy or cut. It also publishes selected paths as local-file URLs through `QClipboard`/`QMimeData`, allowing compatible desktop applications to exchange files. If the internal list is empty, paste attempts to read local URLs from the native clipboard.
+macXplorer keeps an internal list of clipboard paths and whether the operation is copy or cut. It also publishes selected paths as local-file URLs through `QClipboard`/`QMimeData`, allowing compatible desktop applications to exchange files. If the internal list is empty, paste attempts to read local URLs from the native clipboard.
 
 Copy uses `shutil.copy2` for files and `shutil.copytree` for directories. Cut uses `shutil.move`. Existing destinations require an explicit replace, skip, or cancel decision. Self-descendant copies are rejected. Folder creation, file creation, and rename validate that the requested name is a single path component.
 
@@ -118,4 +118,4 @@ Tests use `unittest` and set Qt to offscreen mode for automation. The focused su
 QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -v
 ```
 
-`MacExplorer.spec` builds a windowed application bundle named `MacExplorer.app`. Plugin modules that PyInstaller cannot detect through dynamic imports are listed in `hiddenimports`.
+`macXplorer.spec` builds a windowed application bundle named `macXplorer.app`. Plugin modules that PyInstaller cannot detect through dynamic imports are listed in `hiddenimports`.

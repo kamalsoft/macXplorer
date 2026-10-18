@@ -1,8 +1,8 @@
-# MacExplorer User Guide
+# macXplorer User Guide
 
 ## Overview
 
-MacExplorer presents local and mounted file-system locations in tabbed workspaces. Each workspace contains a left pane and an optional right pane. A preview panel can display supported text, image, and metadata content.
+macXplorer presents local and mounted file-system locations in tabbed workspaces. Each workspace contains a left pane and an optional right pane. A preview panel can display supported text, image, and metadata content.
 
 ## Workspaces and navigation
 
@@ -46,7 +46,7 @@ Both pane views support extended selection. Drag-and-drop is enabled by the Qt i
 
 Delete confirmation is enabled by default. The Trash action uses macOS Finder through `osascript`. It does not perform permanent deletion. Errors are reported to the user.
 
-Copy and cut support multiple selected items. If a destination already contains an item with the same name, MacExplorer asks whether to replace, skip, or cancel. Copying a folder into itself or one of its descendants is rejected.
+Copy and cut support multiple selected items. If a destination already contains an item with the same name, macXplorer asks whether to replace, skip, or cancel. Copying a folder into itself or one of its descendants is rejected.
 
 ZIP extraction rejects entries with absolute paths or parent-directory traversal and extracts to a temporary staging directory before publishing the result. Archive creation avoids including the output archive within a selected source directory.
 
@@ -61,7 +61,7 @@ Open **File > Explorer Settings…** to configure:
 - Preview panel visibility.
 - Whether new workspaces start with both panes visible.
 
-Preferences are stored with Qt `QSettings` under the organization and application name `MacExplorer`. Settings changes are applied after saving.
+Preferences continue to use the existing Qt `QSettings` organization and application identifiers (`MacExplorer`) so renaming the app does not discard saved settings. Settings changes are applied after saving.
 
 ## Keyboard shortcuts
 
@@ -96,5 +96,5 @@ Qt maps the `Ctrl` shortcut modifier to the Command key on macOS. The Workspace 
 - File listings use `QFileSystemModel`; they reflect local volumes and mounted locations available to the current macOS user.
 - The search field filters names in the displayed file model and does not search file contents.
 - Preview supports a defined set of image and text extensions. Text files larger than 100 KiB are not previewed as text.
-- Recent files are added when opening a file through MacExplorer succeeds. The list is local application history.
+- Recent files are added when opening a file through macXplorer succeeds. The list is local application history.
 - The app does not currently implement cloud synchronization, Windows-specific shell extensions, a recycle-bin browser, operation undo, or a full archive manager.

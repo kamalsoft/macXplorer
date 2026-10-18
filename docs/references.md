@@ -1,6 +1,6 @@
 # References
 
-This page links to the primary documentation for the frameworks and operating-system interfaces used by MacExplorer. The links are reference material, not a statement that MacExplorer is endorsed by these organizations.
+This page links to the primary documentation for the frameworks and operating-system interfaces used by macXplorer. The links are reference material, not a statement that macXplorer is endorsed by these organizations.
 
 ## Application and language
 

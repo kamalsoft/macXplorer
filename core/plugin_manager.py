@@ -14,13 +14,13 @@ from plugins import BUILTIN_PLUGIN_MODULES
 from plugins.base import BasePlugin, PluginMetadata
 
 if TYPE_CHECKING:
-    from core.main_window import MacExplorer
+    from core.main_window import MacXplorer
 
 LOGGER = logging.getLogger(__name__)
 
 
 class PluginManager:
-    def __init__(self, core_app: "MacExplorer", toolbar, menus: dict[str, object]):
+    def __init__(self, core_app: "MacXplorer", toolbar, menus: dict[str, object]):
         self.core_app = core_app
         self.toolbar = toolbar
         self.menus = menus

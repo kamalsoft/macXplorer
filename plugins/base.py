@@ -7,7 +7,7 @@ from typing import Mapping, Sequence, TYPE_CHECKING
 from PyQt6.QtGui import QAction
 
 if TYPE_CHECKING:
-    from core.main_window import MacExplorer
+    from core.main_window import MacXplorer
 
 
 @dataclass(frozen=True)
@@ -22,7 +22,7 @@ class BasePlugin(ABC):
     """Base class for explorer plugins loaded by :class:`PluginManager`."""
 
     @abstractmethod
-    def initialize(self, core_app: "MacExplorer") -> None:
+    def initialize(self, core_app: "MacXplorer") -> None:
         """Attach the plugin to the core application."""
 
     @abstractmethod

@@ -6,7 +6,7 @@ import sys
 
 from PyQt6.QtWidgets import QApplication
 
-from core.main_window import MacExplorer
+from core.main_window import MacXplorer
 
 LOGGER = logging.getLogger(__name__)
 
@@ -68,14 +68,14 @@ def set_macos_process_name(name: str) -> None:
 
 
 def main() -> int:
-    set_macos_process_name("MacExplorer")
-    qt_argv = ["MacExplorer", *sys.argv[1:]]
+    set_macos_process_name("macXplorer")
+    qt_argv = ["macXplorer", *sys.argv[1:]]
     app = QApplication(qt_argv)
-    app.setApplicationName("MacExplorer")
-    app.setApplicationDisplayName("MacExplorer")
+    app.setApplicationName("macXplorer")
+    app.setApplicationDisplayName("macXplorer")
     app.setOrganizationName("MacExplorer")
 
-    window = MacExplorer()
+    window = MacXplorer()
     window.show()
     return app.exec()
 

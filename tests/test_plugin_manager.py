@@ -10,7 +10,7 @@ from PyQt6.QtCore import QDir, QMimeData, QSettings, QUrl, Qt
 from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication
 
-from core.main_window import MacExplorer
+from core.main_window import MacXplorer
 from plugins.diff_plugin import FileDiffDialog, FolderCompareDialog
 from plugins.settings_plugin import SettingsDialog
 
@@ -21,12 +21,12 @@ class PluginManagerSmokeTest(unittest.TestCase):
         cls.application = QApplication.instance() or QApplication([])
 
     def test_builtin_plugins_load_and_register_their_views(self):
-        window = MacExplorer()
+        window = MacXplorer()
         try:
-            self.assertEqual(window.windowTitle(), "MacExplorer")
+            self.assertEqual(window.windowTitle(), "macXplorer")
             self.assertEqual(
                 QApplication.applicationDisplayName(),
-                "MacExplorer",
+                "macXplorer",
             )
             self.assertEqual(
                 set(window.plugin_manager.plugins),
@@ -52,7 +52,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
             window.close()
 
     def test_preview_plugin_shows_text_and_metadata(self):
-        window = MacExplorer()
+        window = MacXplorer()
         try:
             preview = window.plugin_manager.get_plugin("preview").preview_pane
             with tempfile.TemporaryDirectory() as directory:
@@ -71,7 +71,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
             window.close()
 
     def test_diff_dialogs_compare_files_and_nested_folders(self):
-        window = MacExplorer()
+        window = MacXplorer()
         try:
             with tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
@@ -104,7 +104,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
             window.close()
 
     def test_workspace_plugin_toggles_the_right_pane(self):
-        window = MacExplorer()
+        window = MacXplorer()
         try:
             window.current_workspace.set_dual_pane(True)
             workspace = window.plugin_manager.get_plugin("workspace")
@@ -118,7 +118,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
             window.close()
 
     def test_shortcuts_work_from_focused_file_pane(self):
-        window = MacExplorer()
+        window = MacXplorer()
         try:
             window.show()
             window.left_pane.tree.setFocus()
@@ -162,7 +162,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
             window.close()
 
     def test_tabs_keep_navigation_and_view_state_independent(self):
-        window = MacExplorer()
+        window = MacXplorer()
         try:
             with tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
@@ -195,7 +195,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
             window.close()
 
     def test_paste_supports_copy_cut_and_safe_zip_extraction(self):
-        window = MacExplorer()
+        window = MacXplorer()
         try:
             with tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
@@ -235,7 +235,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
                     archive.writestr("../outside.txt", "unsafe")
                 extraction_dir = root / "extracted"
                 with self.assertRaises(ValueError):
-                    MacExplorer._extract_zip_to(bad_archive, extraction_dir)
+                    MacXplorer._extract_zip_to(bad_archive, extraction_dir)
                 self.assertFalse(extraction_dir.exists())
                 self.assertFalse((root / "outside.txt").exists())
 
@@ -243,9 +243,9 @@ class PluginManagerSmokeTest(unittest.TestCase):
                 photo_folder.mkdir()
                 (photo_folder / "image.txt").write_text("image", encoding="utf-8")
                 valid_archive = root / "photos.zip"
-                MacExplorer._create_zip([photo_folder], root, valid_archive)
+                MacXplorer._create_zip([photo_folder], root, valid_archive)
                 valid_destination = root / "valid-extraction"
-                MacExplorer._extract_zip_to(valid_archive, valid_destination)
+                MacXplorer._extract_zip_to(valid_archive, valid_destination)
                 self.assertEqual(
                     (valid_destination / "photos" / "image.txt").read_text(
                         encoding="utf-8"
@@ -253,7 +253,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
                     "image",
                 )
                 with self.assertRaises(ValueError):
-                    MacExplorer._create_zip(
+                    MacXplorer._create_zip(
                         [photo_folder], root, photo_folder / "nested.zip"
                     )
                 self.assertFalse((photo_folder / "nested.zip").exists())
@@ -261,7 +261,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
             window.close()
 
     def test_image_browsing_uses_file_model_filters(self):
-        window = MacExplorer()
+        window = MacXplorer()
         try:
             pane = window.left_pane
             pane.set_images_only(True)
@@ -281,7 +281,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
             left_start.mkdir()
             right_start.mkdir()
             settings = QSettings(str(root / "settings.ini"), QSettings.Format.IniFormat)
-            window = MacExplorer(settings=settings)
+            window = MacXplorer(settings=settings)
             try:
                 dialog = SettingsDialog(settings, window)
                 dialog.left_path_input.setText(str(left_start))

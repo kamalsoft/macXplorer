@@ -1,8 +1,8 @@
 # About NanovionLabs
 
-**NanovionLabs** is the organization associated with MacExplorer. This project presents MacExplorer as part of its macOS software work.
+**NanovionLabs** is the organization associated with macXplorer. This project presents macXplorer as part of its macOS software work.
 
-MacExplorer is a macOS file-management application built with Python and PyQt6. Its modular structure separates shared desktop behavior from focused plugins for file comparison, previews, workspace controls, and preferences.
+macXplorer is a macOS file-management application built with Python and PyQt6. Its modular structure separates shared desktop behavior from focused plugins for file comparison, previews, workspace controls, and preferences.
 
 ## Company information boundary
 
@@ -17,4 +17,4 @@ The repository currently does not declare:
 - A versioning or release policy.
 - A distribution, warranty, or support commitment.
 
-Confirm these details with NanovionLabs before redistributing MacExplorer or inviting external contributions.
+Confirm these details with NanovionLabs before redistributing macXplorer or inviting external contributions.

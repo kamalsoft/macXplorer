@@ -1,15 +1,15 @@
-# MacExplorer
+# macXplorer
 
-MacExplorer is a macOS desktop file manager built with Python and PyQt6. It provides tabbed workspaces, a dual-pane browser, file previews, common local file operations, ZIP handling, and an extensible plugin architecture.
+macXplorer is a macOS desktop file manager built with Python and PyQt6. It provides tabbed workspaces, a dual-pane browser, file previews, common local file operations, ZIP handling, and an extensible plugin architecture.
 
-MacExplorer is a NanovionLabs application. See [About NanovionLabs](docs/about-nanovionlabs.md) for the project attribution and the company information available in this repository.
+macXplorer is a NanovionLabs application. See [About NanovionLabs](docs/about-nanovionlabs.md) for the project attribution and the company information available in this repository.
 
 ## Contents
 
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
-- [Run MacExplorer](#run-macexplorer)
+- [Run macXplorer](#run-macxplorer)
 - [Build a macOS application bundle](#build-a-macos-application-bundle)
 - [Tests](#tests)
 - [Documentation](#documentation)
@@ -52,7 +52,7 @@ python -m pip install PyQt6
 Run the application:
 
 ```bash
-python explorer.py
+python macXplorer.py
 ```
 
 macOS may request access to folders protected by privacy controls. Grant the application or the terminal running it the required access in **System Settings > Privacy & Security**.
@@ -63,10 +63,10 @@ Install PyInstaller in the active environment and build from the repository root
 
 ```bash
 python -m pip install pyinstaller
-pyinstaller --noconfirm MacExplorer.spec
+pyinstaller --noconfirm macXplorer.spec
 ```
 
-The spec defines a windowed `MacExplorer.app` bundle under `dist/`. Sign, notarize, and test the resulting bundle on the target macOS versions before distributing it. Packaging does not automatically provide a signing identity, notarization, updater, or installer.
+The spec defines a windowed `macXplorer.app` bundle under `dist/`. Sign, notarize, and test the resulting bundle on the target macOS versions before distributing it. Packaging does not automatically provide a signing identity, notarization, updater, or installer.
 
 ## Tests
 
@@ -88,4 +88,4 @@ The tests cover plugin startup, previews, comparisons, workspace behavior, setti
 
 ## Project status
 
-MacExplorer is actively developed. The repository currently has no published version number, release policy, support commitment, or declared software license. Confirm these items with the project owner before distributing the application or accepting external contributions.
+macXplorer is actively developed. The repository currently has no published version number, release policy, support commitment, or declared software license. Confirm these items with the project owner before distributing the application or accepting external contributions.
