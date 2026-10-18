@@ -1,0 +1,38 @@
+# Python bytecode and test/tool caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.pyright/
+.ruff_cache/
+
+# Local Python environments
+.venv/
+venv/
+env/
+
+# Local development state
+.memory/
+.env
+.env.*
+!.env.example
+
+# macOS metadata
+.DS_Store
+._*
+__MACOSX/
+
+# PyInstaller and packaged application outputs
+/build/
+/dist/
+
+# Editor and temporary files
+*.swp
+*.swo
+*~

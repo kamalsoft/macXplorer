@@ -1,0 +1,332 @@
+import os
+import tempfile
+import unittest
+import zipfile
+from pathlib import Path
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PyQt6.QtCore import QDir, QMimeData, QSettings, QUrl, Qt
+from PyQt6.QtTest import QTest
+from PyQt6.QtWidgets import QApplication
+
+from core.main_window import MacExplorer
+from plugins.diff_plugin import FileDiffDialog, FolderCompareDialog
+from plugins.settings_plugin import SettingsDialog
+
+
+class PluginManagerSmokeTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.application = QApplication.instance() or QApplication([])
+
+    def test_builtin_plugins_load_and_register_their_views(self):
+        window = MacExplorer()
+        try:
+            self.assertEqual(window.windowTitle(), "MacExplorer")
+            self.assertEqual(
+                QApplication.applicationDisplayName(),
+                "MacExplorer",
+            )
+            self.assertEqual(
+                set(window.plugin_manager.plugins),
+                {"diff", "preview", "settings", "workspace"},
+            )
+            self.assertEqual(window.splitter.count(), 2)
+            self.assertEqual(window.workspaces.count(), 1)
+            self.assertEqual(window.current_workspace.splitter.count(), 2)
+            self.assertIn(
+                "Compare Folders",
+                [action.text() for action in window.menus["Tools"].actions()],
+            )
+            menu_titles = [action.text() for action in window.menuBar().actions()]
+            self.assertEqual(len(menu_titles), len(set(menu_titles)))
+            self.assertTrue(window.left_pane.tree.dragEnabled())
+            self.assertTrue(window.left_pane.tree.acceptDrops())
+            self.assertIn(
+                "Explorer Settings…",
+                [action.text() for action in window.menus["File"].actions()],
+            )
+            self.assertFalse(window.plugin_manager.errors)
+        finally:
+            window.close()
+
+    def test_preview_plugin_shows_text_and_metadata(self):
+        window = MacExplorer()
+        try:
+            preview = window.plugin_manager.get_plugin("preview").preview_pane
+            with tempfile.TemporaryDirectory() as directory:
+                text_path = Path(directory) / "sample.txt"
+                text_path.write_text("preview content", encoding="utf-8")
+                preview.update_preview(str(text_path))
+                self.assertEqual(preview.stack.currentWidget(), preview.text_preview)
+                self.assertEqual(preview.text_preview.toPlainText(), "preview content")
+
+                binary_path = Path(directory) / "sample.bin"
+                binary_path.write_bytes(b"\x00\x01")
+                preview.update_preview(str(binary_path))
+                self.assertEqual(preview.stack.currentWidget(), preview.info_label)
+                self.assertIn("Permissions", preview.info_label.text())
+        finally:
+            window.close()
+
+    def test_diff_dialogs_compare_files_and_nested_folders(self):
+        window = MacExplorer()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                left = root / "left"
+                right = root / "right"
+                (left / "nested").mkdir(parents=True)
+                (right / "nested").mkdir(parents=True)
+                left_file = left / "nested" / "compare.txt"
+                right_file = right / "nested" / "compare.txt"
+                left_file.write_text("left version\n", encoding="utf-8")
+                right_file.write_text("right version\n", encoding="utf-8")
+
+                folder_dialog = FolderCompareDialog(str(left), str(right), window)
+                rows = [
+                    (
+                        folder_dialog.table.item(row, 0).text(),
+                        folder_dialog.table.item(row, 1).text(),
+                    )
+                    for row in range(folder_dialog.table.rowCount())
+                ]
+                self.assertIn(("nested/compare.txt", "Different"), rows)
+
+                file_dialog = FileDiffDialog(str(left_file), str(right_file), window)
+                diff = file_dialog.diff_text.toPlainText()
+                self.assertIn("-left version", diff)
+                self.assertIn("+right version", diff)
+                folder_dialog.close()
+                file_dialog.close()
+        finally:
+            window.close()
+
+    def test_workspace_plugin_toggles_the_right_pane(self):
+        window = MacExplorer()
+        try:
+            window.current_workspace.set_dual_pane(True)
+            workspace = window.plugin_manager.get_plugin("workspace")
+            workspace.toggle_dual_pane()
+            self.assertFalse(window.dual_pane_active)
+            self.assertTrue(window.right_pane.isHidden())
+            workspace.toggle_dual_pane()
+            self.assertTrue(window.dual_pane_active)
+            self.assertFalse(window.right_pane.isHidden())
+        finally:
+            window.close()
+
+    def test_shortcuts_work_from_focused_file_pane(self):
+        window = MacExplorer()
+        try:
+            window.show()
+            window.left_pane.tree.setFocus()
+            self.application.processEvents()
+
+            QTest.keyClick(
+                window.left_pane.tree,
+                Qt.Key.Key_T,
+                Qt.KeyboardModifier.ControlModifier,
+            )
+            self.application.processEvents()
+            self.assertEqual(window.workspaces.count(), 2)
+
+            QTest.keyClick(
+                window.left_pane.tree,
+                Qt.Key.Key_L,
+                Qt.KeyboardModifier.ControlModifier,
+            )
+            self.application.processEvents()
+            self.assertTrue(window.left_pane.path_bar.hasFocus())
+
+            workspace_plugin = window.plugin_manager.get_plugin("workspace")
+            workspace_plugin.set_dual_pane(False)
+            window.left_pane.tree.setFocus()
+            QTest.keyClick(
+                window.left_pane.tree,
+                Qt.Key.Key_D,
+                Qt.KeyboardModifier.ControlModifier,
+            )
+            self.application.processEvents()
+            self.assertTrue(window.dual_pane_active)
+
+            QTest.keyClick(
+                window.left_pane.tree,
+                Qt.Key.Key_D,
+                Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier,
+            )
+            self.application.processEvents()
+            self.assertFalse(window.dual_pane_active)
+        finally:
+            window.close()
+
+    def test_tabs_keep_navigation_and_view_state_independent(self):
+        window = MacExplorer()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                left = root / "left"
+                child = left / "child"
+                right = root / "right"
+                child.mkdir(parents=True)
+                right.mkdir()
+
+                first_tab = window.current_workspace
+                first_tab.left_pane.navigate_to(str(left))
+                first_tab.left_pane.navigate_to(str(child))
+                first_tab.left_pane.navigate_back()
+                self.assertEqual(
+                    Path(first_tab.left_pane.path_bar.text()).resolve(), left.resolve()
+                )
+                self.assertEqual(first_tab.left_pane.current_path, left.resolve())
+                first_tab.left_pane.set_view_mode("icons")
+
+                window.new_tab(right)
+                self.assertEqual(window.workspaces.count(), 2)
+                self.assertEqual(window.left_pane.path_bar.text(), str(right))
+                self.assertIsNot(window.current_workspace, first_tab)
+                window.workspaces.setCurrentWidget(first_tab)
+                self.assertEqual(
+                    Path(window.left_pane.path_bar.text()).resolve(), left.resolve()
+                )
+                self.assertEqual(first_tab.left_pane.views.currentWidget(), first_tab.left_pane.list_view)
+        finally:
+            window.close()
+
+    def test_paste_supports_copy_cut_and_safe_zip_extraction(self):
+        window = MacExplorer()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                source = root / "source.txt"
+                source.write_text("hello", encoding="utf-8")
+                target = root / "destination"
+                target.mkdir()
+                window.left_pane.navigate_to(str(target))
+
+                window.clipboard_paths = [source]
+                window.clipboard_operation = "copy"
+                window.paste_item()
+                copied = target / source.name
+                self.assertEqual(copied.read_text(encoding="utf-8"), "hello")
+                copied.unlink()
+
+                window.clipboard_operation = "cut"
+                window.paste_item()
+                self.assertFalse(source.exists())
+                self.assertTrue(copied.exists())
+                self.assertEqual(window.clipboard_paths, [])
+
+                external_source = root / "external.txt"
+                external_source.write_text("from Finder", encoding="utf-8")
+                mime_data = QMimeData()
+                mime_data.setUrls([QUrl.fromLocalFile(str(external_source))])
+                QApplication.clipboard().setMimeData(mime_data)
+                window.clipboard_paths = []
+                window.paste_item()
+                self.assertEqual(
+                    (target / external_source.name).read_text(encoding="utf-8"),
+                    "from Finder",
+                )
+
+                bad_archive = root / "unsafe.zip"
+                with zipfile.ZipFile(bad_archive, "w") as archive:
+                    archive.writestr("../outside.txt", "unsafe")
+                extraction_dir = root / "extracted"
+                with self.assertRaises(ValueError):
+                    MacExplorer._extract_zip_to(bad_archive, extraction_dir)
+                self.assertFalse(extraction_dir.exists())
+                self.assertFalse((root / "outside.txt").exists())
+
+                photo_folder = root / "photos"
+                photo_folder.mkdir()
+                (photo_folder / "image.txt").write_text("image", encoding="utf-8")
+                valid_archive = root / "photos.zip"
+                MacExplorer._create_zip([photo_folder], root, valid_archive)
+                valid_destination = root / "valid-extraction"
+                MacExplorer._extract_zip_to(valid_archive, valid_destination)
+                self.assertEqual(
+                    (valid_destination / "photos" / "image.txt").read_text(
+                        encoding="utf-8"
+                    ),
+                    "image",
+                )
+                with self.assertRaises(ValueError):
+                    MacExplorer._create_zip(
+                        [photo_folder], root, photo_folder / "nested.zip"
+                    )
+                self.assertFalse((photo_folder / "nested.zip").exists())
+        finally:
+            window.close()
+
+    def test_image_browsing_uses_file_model_filters(self):
+        window = MacExplorer()
+        try:
+            pane = window.left_pane
+            pane.set_images_only(True)
+            self.assertTrue(pane.images_only)
+            self.assertIn("*.jpg", pane.source_model.nameFilters())
+            self.assertFalse(pane.source_model.nameFilterDisables())
+            pane.set_images_only(False)
+            self.assertEqual(pane.source_model.nameFilters(), [])
+        finally:
+            window.close()
+
+    def test_settings_dialog_persists_and_applies_explorer_preferences(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            left_start = root / "left-start"
+            right_start = root / "right-start"
+            left_start.mkdir()
+            right_start.mkdir()
+            settings = QSettings(str(root / "settings.ini"), QSettings.Format.IniFormat)
+            window = MacExplorer(settings=settings)
+            try:
+                dialog = SettingsDialog(settings, window)
+                dialog.left_path_input.setText(str(left_start))
+                dialog.right_path_input.setText(str(right_start))
+                dialog.show_hidden.setChecked(True)
+                dialog.confirm_delete.setChecked(False)
+                dialog.show_preview.setChecked(False)
+                dialog.dual_pane.setChecked(False)
+                dialog.favorites_list.addItem(str(right_start))
+                dialog._save_and_accept()
+                self.assertEqual(dialog.result(), dialog.DialogCode.Accepted)
+
+                window.apply_settings()
+                self.assertEqual(
+                    window.left_pane.path_bar.text(), str(left_start.resolve())
+                )
+                self.assertEqual(
+                    window.right_pane.path_bar.text(), str(right_start.resolve())
+                )
+                self.assertTrue(
+                    window.left_pane.source_model.filter() & QDir.Filter.Hidden
+                )
+                self.assertFalse(window.dual_pane_active)
+                self.assertTrue(window.right_pane.isHidden())
+                preview = window.plugin_manager.get_plugin("preview").preview_pane
+                self.assertTrue(preview.isHidden())
+
+                settings.sync()
+                self.assertFalse(settings.value("files/confirmDelete", True, type=bool))
+                self.assertEqual(
+                    settings.value("workspace/favorites"), [str(right_start)]
+                )
+            finally:
+                window.close()
+
+    def test_cancelled_settings_dialog_does_not_persist_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            settings = QSettings(
+                str(Path(directory) / "settings.ini"), QSettings.Format.IniFormat
+            )
+            dialog = SettingsDialog(settings)
+            dialog.show_hidden.setChecked(True)
+            dialog.reject()
+            self.assertFalse(settings.contains("files/showHidden"))
+
+
+if __name__ == "__main__":
+    unittest.main()
