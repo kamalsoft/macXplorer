@@ -430,6 +430,10 @@ class PluginManagerSmokeTest(unittest.TestCase):
                     ["General", "Themes"],
                 )
                 self.assertEqual(
+                    dialog.themes_content_layout.itemAt(1).widget().title(),
+                    "Advanced UI theme catalog",
+                )
+                self.assertEqual(
                     [
                         dialog.advanced_theme_list.item(index).text()
                         for index in range(dialog.advanced_theme_list.count())

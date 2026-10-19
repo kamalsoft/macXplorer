@@ -154,9 +154,9 @@ class SettingsDialog(QDialog):
         themes_scroll = QScrollArea(themes_page)
         themes_scroll.setWidgetResizable(True)
         themes_content = QWidget(themes_scroll)
-        themes_content_layout = QVBoxLayout(themes_content)
-        themes_form = QFormLayout()
-        themes_content_layout.addLayout(themes_form)
+        self.themes_content_layout = QVBoxLayout(themes_content)
+        preset_form = QFormLayout()
+        self.themes_content_layout.addLayout(preset_form)
         themes_scroll.setWidget(themes_content)
         themes_layout.addWidget(themes_scroll)
         self.settings_tabs.addTab(themes_page, "Themes")
@@ -167,65 +167,7 @@ class SettingsDialog(QDialog):
         selected_theme = str(settings.value("appearance/theme", "system")).lower()
         theme_index = self.theme_selector.findData(selected_theme)
         self.theme_selector.setCurrentIndex(theme_index if theme_index >= 0 else 0)
-        themes_form.addRow("Active appearance preset:", self.theme_selector)
-
-        self.text_size_selector = self._add_choice(
-            themes_form,
-            "Text size:",
-            TEXT_SIZE_OPTIONS,
-            str(settings.value("appearance/textSize", "standard")),
-        )
-        self.density_selector = self._add_choice(
-            themes_form,
-            "Interface density:",
-            DENSITY_OPTIONS,
-            str(settings.value("appearance/density", "comfortable")),
-        )
-        self.contrast_selector = self._add_choice(
-            themes_form,
-            "Contrast:",
-            CONTRAST_OPTIONS,
-            str(settings.value("appearance/contrast", "standard")),
-        )
-        self.color_treatment_selector = self._add_choice(
-            themes_form,
-            "Color treatment:",
-            COLOR_TREATMENT_OPTIONS,
-            str(settings.value("appearance/colorTreatment", "standard")),
-        )
-
-        self.theme_preview = QWidget(self)
-        self.theme_preview.setObjectName("themePreview")
-        preview_layout = QVBoxLayout(self.theme_preview)
-        preview_layout.setContentsMargins(10, 10, 10, 10)
-        preview_layout.addWidget(
-            QLabel("Preview the selected appearance", self.theme_preview)
-        )
-
-        preview_content = QHBoxLayout()
-        self.preview_file_list = QListWidget(self.theme_preview)
-        self.preview_file_list.addItems(["Documents", "Pictures", "Downloads"])
-        self.preview_file_list.setCurrentRow(1)
-        preview_content.addWidget(self.preview_file_list, 1)
-
-        preview_controls = QVBoxLayout()
-        preview_controls.addWidget(QLabel("Sample file name", self.theme_preview))
-        self.preview_input = QLineEdit("Quarterly report.pdf", self.theme_preview)
-        preview_controls.addWidget(self.preview_input)
-        preview_controls.addWidget(QLabel("Selected item preview", self.theme_preview))
-        self.preview_button = QPushButton("Sample action", self.theme_preview)
-        preview_controls.addWidget(self.preview_button)
-        preview_controls.addStretch()
-        preview_content.addLayout(preview_controls, 2)
-        preview_layout.addLayout(preview_content)
-
-        appearance_group = QGroupBox("Appearance preview", self)
-        appearance_layout = QVBoxLayout(appearance_group)
-        appearance_layout.addWidget(self.theme_preview)
-        appearance_layout.addWidget(
-            QLabel("This preview does not change the app until you save.", appearance_group)
-        )
-        themes_content_layout.addWidget(appearance_group)
+        preset_form.addRow("Active appearance preset:", self.theme_selector)
 
         catalog_group = QGroupBox("Advanced UI theme catalog", themes_content)
         catalog_layout = QVBoxLayout(catalog_group)
@@ -269,8 +211,7 @@ class SettingsDialog(QDialog):
         catalog_content.addWidget(self.advanced_theme_list, 1)
         catalog_content.addWidget(self.theme_details, 2)
         catalog_layout.addLayout(catalog_content)
-        themes_content_layout.addWidget(catalog_group)
-        themes_content_layout.addStretch()
+        self.themes_content_layout.addWidget(catalog_group)
         for theme_info in ADVANCED_THEME_CATALOG:
             self.advanced_theme_list.addItem(theme_info.name)
             self.advanced_theme_list.item(
@@ -281,6 +222,68 @@ class SettingsDialog(QDialog):
             self._show_advanced_theme_details
         )
         self.advanced_theme_list.setCurrentRow(0)
+
+        accessibility_form = QFormLayout()
+        self.themes_content_layout.addLayout(accessibility_form)
+
+        self.text_size_selector = self._add_choice(
+            accessibility_form,
+            "Text size:",
+            TEXT_SIZE_OPTIONS,
+            str(settings.value("appearance/textSize", "standard")),
+        )
+        self.density_selector = self._add_choice(
+            accessibility_form,
+            "Interface density:",
+            DENSITY_OPTIONS,
+            str(settings.value("appearance/density", "comfortable")),
+        )
+        self.contrast_selector = self._add_choice(
+            accessibility_form,
+            "Contrast:",
+            CONTRAST_OPTIONS,
+            str(settings.value("appearance/contrast", "standard")),
+        )
+        self.color_treatment_selector = self._add_choice(
+            accessibility_form,
+            "Color treatment:",
+            COLOR_TREATMENT_OPTIONS,
+            str(settings.value("appearance/colorTreatment", "standard")),
+        )
+
+        self.theme_preview = QWidget(self)
+        self.theme_preview.setObjectName("themePreview")
+        preview_layout = QVBoxLayout(self.theme_preview)
+        preview_layout.setContentsMargins(10, 10, 10, 10)
+        preview_layout.addWidget(
+            QLabel("Preview the selected appearance", self.theme_preview)
+        )
+
+        preview_content = QHBoxLayout()
+        self.preview_file_list = QListWidget(self.theme_preview)
+        self.preview_file_list.addItems(["Documents", "Pictures", "Downloads"])
+        self.preview_file_list.setCurrentRow(1)
+        preview_content.addWidget(self.preview_file_list, 1)
+
+        preview_controls = QVBoxLayout()
+        preview_controls.addWidget(QLabel("Sample file name", self.theme_preview))
+        self.preview_input = QLineEdit("Quarterly report.pdf", self.theme_preview)
+        preview_controls.addWidget(self.preview_input)
+        preview_controls.addWidget(QLabel("Selected item preview", self.theme_preview))
+        self.preview_button = QPushButton("Sample action", self.theme_preview)
+        preview_controls.addWidget(self.preview_button)
+        preview_controls.addStretch()
+        preview_content.addLayout(preview_controls, 2)
+        preview_layout.addLayout(preview_content)
+
+        appearance_group = QGroupBox("Appearance preview", self)
+        appearance_layout = QVBoxLayout(appearance_group)
+        appearance_layout.addWidget(self.theme_preview)
+        appearance_layout.addWidget(
+            QLabel("This preview does not change the app until you save.", appearance_group)
+        )
+        self.themes_content_layout.addWidget(appearance_group)
+        self.themes_content_layout.addStretch()
 
         self.theme_selector.currentIndexChanged.connect(self._update_theme_preview)
         self.text_size_selector.currentIndexChanged.connect(self._update_theme_preview)
