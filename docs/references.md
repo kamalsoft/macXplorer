@@ -22,4 +22,9 @@ This page links to the primary documentation for the frameworks and operating-sy
 
 ## NanovionLabs
 
-The project owner requested NanovionLabs attribution. No verified company website or approved corporate profile was available in this repository during documentation. Add official company references here when supplied by NanovionLabs.
+The project repository and license use the spelling **NanovionLabs**. The supplied public website identifies itself as **Nanovian Labs** and uses the tagline “Precision. Integration. Cosmic Scale.”
+
+- [Nanovian Labs website](https://nanovian.vercel.app/)
+- [About NanovionLabs and the naming distinction](about-nanovionlabs.md)
+
+The homepage's terminal-style `askdoc` example describes Jina V2 embeddings and local Llama 3.2 synthesis. This is content published by the website; it is not independent verification of company services, performance, or macXplorer features. The homepage does not establish company history, leadership, location, contact details, or support commitments.
