@@ -74,7 +74,7 @@ class FilePane(QWidget):
         layout.setContentsMargins(4, 4, 4, 4)
 
         self.title_label = QLabel(f"<b>{title}</b>")
-        self.title_label.setStyleSheet("color: #569cd6; font-size: 14px;")
+        self.title_label.setStyleSheet("font-size: 14px;")
         layout.addWidget(self.title_label)
 
         self.navigation_history: list[str] = []

@@ -7,11 +7,14 @@ from typing import Sequence
 from PyQt6.QtCore import QSettings
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
+    QApplication,
     QCheckBox,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -22,6 +25,16 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from core.theme import (
+    COLOR_TREATMENT_OPTIONS,
+    CONTRAST_OPTIONS,
+    DENSITY_OPTIONS,
+    TEXT_SIZE_OPTIONS,
+    THEME_COLORS,
+    THEME_OPTIONS,
+    system_theme_name,
+    theme_stylesheet,
+)
 from plugins.base import BasePlugin, PluginMetadata
 
 LOGGER = logging.getLogger(__name__)
@@ -122,6 +135,87 @@ class SettingsDialog(QDialog):
         self.show_preview.setChecked(self._bool_value("view/showPreview", True))
         form.addRow("Preview:", self.show_preview)
 
+        self.theme_selector = QComboBox(self)
+        for label, theme_id in THEME_OPTIONS:
+            self.theme_selector.addItem(label, theme_id)
+        selected_theme = str(settings.value("appearance/theme", "system")).lower()
+        theme_index = self.theme_selector.findData(selected_theme)
+        self.theme_selector.setCurrentIndex(theme_index if theme_index >= 0 else 0)
+        form.addRow("Appearance:", self.theme_selector)
+
+        self.text_size_selector = self._add_choice(
+            form,
+            "Text size:",
+            TEXT_SIZE_OPTIONS,
+            str(settings.value("appearance/textSize", "standard")),
+        )
+        self.density_selector = self._add_choice(
+            form,
+            "Interface density:",
+            DENSITY_OPTIONS,
+            str(settings.value("appearance/density", "comfortable")),
+        )
+        self.contrast_selector = self._add_choice(
+            form,
+            "Contrast:",
+            CONTRAST_OPTIONS,
+            str(settings.value("appearance/contrast", "standard")),
+        )
+        self.color_treatment_selector = self._add_choice(
+            form,
+            "Color treatment:",
+            COLOR_TREATMENT_OPTIONS,
+            str(settings.value("appearance/colorTreatment", "standard")),
+        )
+
+        self.theme_preview = QWidget(self)
+        self.theme_preview.setObjectName("themePreview")
+        preview_layout = QVBoxLayout(self.theme_preview)
+        preview_layout.setContentsMargins(10, 10, 10, 10)
+        preview_layout.addWidget(
+            QLabel("Preview the selected appearance", self.theme_preview)
+        )
+
+        preview_content = QHBoxLayout()
+        self.preview_file_list = QListWidget(self.theme_preview)
+        self.preview_file_list.addItems(["Documents", "Pictures", "Downloads"])
+        self.preview_file_list.setCurrentRow(1)
+        preview_content.addWidget(self.preview_file_list, 1)
+
+        preview_controls = QVBoxLayout()
+        preview_controls.addWidget(QLabel("Sample file name", self.theme_preview))
+        self.preview_input = QLineEdit("Quarterly report.pdf", self.theme_preview)
+        preview_controls.addWidget(self.preview_input)
+        preview_controls.addWidget(QLabel("Selected item preview", self.theme_preview))
+        self.preview_button = QPushButton("Sample action", self.theme_preview)
+        preview_controls.addWidget(self.preview_button)
+        preview_controls.addStretch()
+        preview_content.addLayout(preview_controls, 2)
+        preview_layout.addLayout(preview_content)
+
+        appearance_group = QGroupBox("Appearance preview", self)
+        appearance_layout = QVBoxLayout(appearance_group)
+        appearance_layout.addWidget(self.theme_preview)
+        appearance_layout.addWidget(
+            QLabel("This preview does not change the app until you save.", appearance_group)
+        )
+        layout.addWidget(appearance_group)
+        self.theme_selector.currentIndexChanged.connect(self._update_theme_preview)
+        self.text_size_selector.currentIndexChanged.connect(self._update_theme_preview)
+        self.density_selector.currentIndexChanged.connect(self._update_theme_preview)
+        self.contrast_selector.currentIndexChanged.connect(self._update_theme_preview)
+        self.color_treatment_selector.currentIndexChanged.connect(
+            self._update_theme_preview
+        )
+        application = QApplication.instance()
+        if application is not None:
+            color_scheme_changed = getattr(
+                application.styleHints(), "colorSchemeChanged", None
+            )
+            if color_scheme_changed is not None:
+                color_scheme_changed.connect(self._on_system_color_scheme_changed)
+        self._update_theme_preview()
+
         self.dual_pane = QCheckBox("Start with both file panes visible")
         self.dual_pane.setChecked(self._bool_value("workspace/dualPane", True))
         form.addRow("Workspace:", self.dual_pane)
@@ -146,6 +240,42 @@ class SettingsDialog(QDialog):
         if isinstance(value, str):
             return value.strip().lower() in {"1", "true", "yes", "on"}
         return bool(value)
+
+    def _add_choice(
+        self,
+        form: QFormLayout,
+        label: str,
+        options: tuple[tuple[str, str], ...],
+        selected: str,
+    ) -> QComboBox:
+        selector = QComboBox(self)
+        for option_label, option_value in options:
+            selector.addItem(option_label, option_value)
+        index = selector.findData(selected)
+        selector.setCurrentIndex(index if index >= 0 else 0)
+        form.addRow(label, selector)
+        return selector
+
+    def _update_theme_preview(self, _index: int = 0) -> None:
+        theme = self.theme_selector.currentData()
+        if theme == "system":
+            application = QApplication.instance()
+            theme = system_theme_name(application) if application is not None else "light"
+        if theme not in THEME_COLORS:
+            theme = "light"
+        self.theme_preview.setStyleSheet(
+            theme_stylesheet(
+                str(theme),
+                text_size=str(self.text_size_selector.currentData()),
+                density=str(self.density_selector.currentData()),
+                contrast=str(self.contrast_selector.currentData()),
+                color_treatment=str(self.color_treatment_selector.currentData()),
+            )
+        )
+
+    def _on_system_color_scheme_changed(self, *_args) -> None:
+        if self.theme_selector.currentData() == "system":
+            self._update_theme_preview()
 
     def _directory_input(self, initial: str) -> tuple[QLineEdit, QWidget]:
         container = QWidget(self)
@@ -192,6 +322,11 @@ class SettingsDialog(QDialog):
             "files/showHidden": self.show_hidden.isChecked(),
             "files/confirmDelete": self.confirm_delete.isChecked(),
             "view/showPreview": self.show_preview.isChecked(),
+            "appearance/theme": self.theme_selector.currentData(),
+            "appearance/textSize": self.text_size_selector.currentData(),
+            "appearance/density": self.density_selector.currentData(),
+            "appearance/contrast": self.contrast_selector.currentData(),
+            "appearance/colorTreatment": self.color_treatment_selector.currentData(),
             "workspace/dualPane": self.dual_pane.isChecked(),
             "workspace/favorites": [
                 self.favorites_list.item(index).text()

@@ -68,7 +68,7 @@ class PreviewPane(QWidget):
 
         title = QLabel("<b>File Preview</b>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("color: #4ec9b0; font-size: 14px;")
+        title.setStyleSheet("font-size: 14px;")
         layout.addWidget(title)
 
         self.stack = QStackedWidget(self)

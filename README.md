@@ -26,7 +26,7 @@ macXplorer is a NanovionLabs application. See [About NanovionLabs](docs/about-na
 - Local favorites, recent files, common macOS folders, and mounted volumes.
 - Text, image, and file metadata previews.
 - Folder and text-file comparison through the Diff plugin.
-- Persistent preferences for startup folders, favorites, hidden files, delete confirmation, preview visibility, and dual-pane startup.
+- Persistent preferences for macOS-oriented system, light, dark, ocean, forest, graphite, warm night, and terminal appearances, plus high contrast, text size, density, and color treatment.
 
 The app works with local and mounted paths exposed through macOS. It does not currently provide cloud-provider integrations, Windows shell features, or a full content-indexed search service. The search field filters the file model in open workspaces.
 

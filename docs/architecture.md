@@ -83,12 +83,17 @@ The core constructs `QSettings("MacExplorer", "MacExplorer")`. These existing id
 | `workspace/rightDirectory` | Right-pane startup location. |
 | `workspace/favorites` | Persisted list of favorite directory paths. |
 | `workspace/dualPane` | Whether new workspaces show both panes. |
+| `appearance/theme` | `system`, `light`, `dark`, `ocean`, `forest`, `graphite`, `warm_night`, or `terminal`; system follows Qt's reported OS color scheme. |
+| `appearance/textSize` | `standard`, `large`, or `extra_large` text. |
+| `appearance/density` | `comfortable` or `compact` control spacing. |
+| `appearance/contrast` | `standard` or `high` contrast. |
+| `appearance/colorTreatment` | `standard`, `colorblind`, or `grayscale` palette treatment. |
 | `files/showHidden` | Whether hidden file-system entries are displayed. |
 | `files/confirmDelete` | Whether Trash operations require confirmation. |
 | `view/showPreview` | Whether the preview panel is visible. |
 | `history/recentFiles` | Recently opened local file paths. |
 
-The settings dialog validates startup directories before saving and calls `sync()` to persist changes. `apply_settings()` updates existing panes and the preview panel.
+The settings dialog validates startup directories before saving and calls `sync()` to persist changes. Its appearance sample renders the selected preset and accessibility options locally without changing the running app. `apply_settings()` updates existing panes, the preview panel, and the application stylesheet after settings are saved. In system mode, the core listens for Qt color-scheme change notifications and refreshes the stylesheet. Themes that require blur, motion, 3D rendering, or another desktop platform's widget system are outside the stylesheet-based theme implementation.
 
 ## Clipboard and file operations
 

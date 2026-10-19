@@ -28,7 +28,15 @@ from PyQt6.QtWidgets import (
 )
 
 from core.plugin_manager import PluginManager
-from core.theme import DARK_THEME
+from core.theme import (
+    COLOR_TREATMENT_OPTIONS,
+    CONTRAST_OPTIONS,
+    DENSITY_OPTIONS,
+    TEXT_SIZE_OPTIONS,
+    THEME_COLORS,
+    system_theme_name,
+    theme_stylesheet,
+)
 from core.widgets import FilePane, WorkspaceTab
 
 LOGGER = logging.getLogger(__name__)
@@ -47,9 +55,16 @@ class MacXplorer(QMainWindow):
             application.setOrganizationName("MacExplorer")
             application.setFont(QFont("Helvetica Neue"))
         super().__init__()
+        self.settings = settings if settings is not None else QSettings("MacExplorer", "MacExplorer")
+        if application is not None:
+            self._apply_theme()
+            color_scheme_changed = getattr(
+                application.styleHints(), "colorSchemeChanged", None
+            )
+            if color_scheme_changed is not None:
+                color_scheme_changed.connect(self._on_system_color_scheme_changed)
         self.setWindowTitle("macXplorer")
         self.resize(1280, 800)
-        self.settings = settings if settings is not None else QSettings("MacExplorer", "MacExplorer")
         self.clipboard_paths: list[Path] = []
         self.clipboard_operation = "copy"
         self.clipboard_path: Path | None = None  # Compatibility for existing plugins.
@@ -58,9 +73,6 @@ class MacXplorer(QMainWindow):
         self._build_ui()
         self._create_menus()
         self.plugin_manager = PluginManager(self, self.toolbar, self.menus)
-        application = QApplication.instance()
-        if application is not None:
-            application.setStyleSheet(DARK_THEME)
         self._load_plugins()
 
     @property
@@ -829,7 +841,49 @@ class MacXplorer(QMainWindow):
             return value
         return str(value).lower() in {"true", "1", "yes", "on"}
 
+    def _apply_theme(self) -> None:
+        application = QApplication.instance()
+        if application is None:
+            return
+        preference = str(self.settings.value("appearance/theme", "system")).lower()
+        if preference != "system" and preference not in THEME_COLORS:
+            LOGGER.warning("Unknown appearance theme %r; using system appearance", preference)
+            preference = "system"
+        resolved_theme = (
+            system_theme_name(application) if preference == "system" else preference
+        )
+        text_size = self._appearance_choice("appearance/textSize", "standard", TEXT_SIZE_OPTIONS)
+        density = self._appearance_choice("appearance/density", "comfortable", DENSITY_OPTIONS)
+        contrast = self._appearance_choice("appearance/contrast", "standard", CONTRAST_OPTIONS)
+        color_treatment = self._appearance_choice(
+            "appearance/colorTreatment", "standard", COLOR_TREATMENT_OPTIONS
+        )
+        application.setStyleSheet(
+            theme_stylesheet(
+                resolved_theme,
+                text_size=text_size,
+                density=density,
+                contrast=contrast,
+                color_treatment=color_treatment,
+            )
+        )
+
+    def _appearance_choice(
+        self, key: str, default: str, options: tuple[tuple[str, str], ...]
+    ) -> str:
+        value = str(self.settings.value(key, default)).lower()
+        allowed = {option for _, option in options}
+        if value not in allowed:
+            LOGGER.warning("Unknown appearance setting %s=%r; using %s", key, value, default)
+            return default
+        return value
+
+    def _on_system_color_scheme_changed(self, *_args) -> None:
+        if str(self.settings.value("appearance/theme", "system")).lower() == "system":
+            self._apply_theme()
+
     def apply_settings(self) -> None:
+        self._apply_theme()
         left = Path(str(self.settings.value("workspace/leftDirectory", str(Path.home())))).expanduser()
         right_default = Path.home() / "Downloads"
         if not right_default.is_dir():

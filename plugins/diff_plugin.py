@@ -104,7 +104,7 @@ class FolderCompareDialog(QDialog):
             f"<b>Comparing:</b><br>Left: {escape(str(self.left_dir))}"
             f"<br>Right: {escape(str(self.right_dir))}"
         )
-        label.setStyleSheet("color: #9cdcfe; margin-bottom: 8px;")
+        label.setStyleSheet("margin-bottom: 8px;")
         layout.addWidget(label)
 
         self.table = QTableWidget()
@@ -190,7 +190,7 @@ class FileDiffDialog(QDialog):
             f"<b>Diffing:</b> {escape(Path(file1).name)} "
             f"vs {escape(Path(file2).name)}"
         )
-        info.setStyleSheet("color: #ce9178; margin-bottom: 4px;")
+        info.setStyleSheet("margin-bottom: 4px;")
         layout.addWidget(info)
 
         self.diff_text = QTextEdit()

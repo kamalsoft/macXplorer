@@ -11,6 +11,7 @@ from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication
 
 from core.main_window import MacXplorer
+from core.theme import THEME_OPTIONS, system_theme_name, theme_stylesheet
 from plugins.diff_plugin import FileDiffDialog, FolderCompareDialog
 from plugins.settings_plugin import SettingsDialog
 
@@ -326,6 +327,137 @@ class PluginManagerSmokeTest(unittest.TestCase):
             dialog.show_hidden.setChecked(True)
             dialog.reject()
             self.assertFalse(settings.contains("files/showHidden"))
+
+    def test_appearance_setting_supports_system_light_and_dark(self):
+        with tempfile.TemporaryDirectory() as directory:
+            settings = QSettings(
+                str(Path(directory) / "settings.ini"), QSettings.Format.IniFormat
+            )
+            window = MacXplorer(settings=settings)
+            try:
+                application = QApplication.instance()
+                self.assertEqual(
+                    application.styleSheet(),
+                    theme_stylesheet(system_theme_name(application)),
+                )
+
+                dialog = SettingsDialog(settings, window)
+                self.assertEqual(dialog.theme_selector.currentData(), "system")
+                dialog.theme_selector.setCurrentIndex(
+                    dialog.theme_selector.findData("light")
+                )
+                dialog._save_and_accept()
+                window.apply_settings()
+                self.assertEqual(settings.value("appearance/theme"), "light")
+                self.assertEqual(application.styleSheet(), theme_stylesheet("light"))
+
+                dialog = SettingsDialog(settings, window)
+                dialog.theme_selector.setCurrentIndex(
+                    dialog.theme_selector.findData("dark")
+                )
+                dialog._save_and_accept()
+                window.apply_settings()
+                self.assertEqual(settings.value("appearance/theme"), "dark")
+                self.assertEqual(application.styleSheet(), theme_stylesheet("dark"))
+            finally:
+                window.close()
+
+    def test_appearance_presets_preview_before_saving(self):
+        with tempfile.TemporaryDirectory() as directory:
+            settings = QSettings(
+                str(Path(directory) / "settings.ini"), QSettings.Format.IniFormat
+            )
+            window = MacXplorer(settings=settings)
+            try:
+                application = QApplication.instance()
+                original_stylesheet = application.styleSheet()
+                dialog = SettingsDialog(settings, window)
+                available_ids = [
+                    dialog.theme_selector.itemData(index)
+                    for index in range(dialog.theme_selector.count())
+                ]
+                self.assertEqual(
+                    available_ids, [theme_id for _, theme_id in THEME_OPTIONS]
+                )
+                custom_stylesheets = {
+                    theme_stylesheet(theme_id)
+                    for _, theme_id in THEME_OPTIONS
+                    if theme_id != "system"
+                }
+                self.assertEqual(len(custom_stylesheets), len(THEME_OPTIONS) - 1)
+
+                dialog.theme_selector.setCurrentIndex(
+                    dialog.theme_selector.findData("ocean")
+                )
+                self.assertIn(
+                    "background-color: #111c2b",
+                    dialog.theme_preview.styleSheet(),
+                )
+                self.assertEqual(application.styleSheet(), original_stylesheet)
+                self.assertEqual(settings.value("appearance/theme", "system"), "system")
+
+                dialog.theme_selector.setCurrentIndex(
+                    dialog.theme_selector.findData("forest")
+                )
+                self.assertIn(
+                    "background-color: #17211c",
+                    dialog.theme_preview.styleSheet(),
+                )
+                self.assertEqual(application.styleSheet(), original_stylesheet)
+                dialog.reject()
+                self.assertEqual(settings.value("appearance/theme", "system"), "system")
+            finally:
+                window.close()
+
+    def test_accessibility_appearance_options_persist_and_apply(self):
+        with tempfile.TemporaryDirectory() as directory:
+            settings = QSettings(
+                str(Path(directory) / "settings.ini"), QSettings.Format.IniFormat
+            )
+            window = MacXplorer(settings=settings)
+            try:
+                application = QApplication.instance()
+                dialog = SettingsDialog(settings, window)
+                dialog.theme_selector.setCurrentIndex(
+                    dialog.theme_selector.findData("light")
+                )
+                dialog.text_size_selector.setCurrentIndex(
+                    dialog.text_size_selector.findData("extra_large")
+                )
+                dialog.density_selector.setCurrentIndex(
+                    dialog.density_selector.findData("compact")
+                )
+                dialog.contrast_selector.setCurrentIndex(
+                    dialog.contrast_selector.findData("high")
+                )
+                dialog.color_treatment_selector.setCurrentIndex(
+                    dialog.color_treatment_selector.findData("colorblind")
+                )
+                preview_style = dialog.theme_preview.styleSheet()
+                self.assertIn("font-size: 18px", preview_style)
+                self.assertIn("padding: 2px", preview_style)
+                self.assertIn("border: 3px solid", preview_style)
+                self.assertIn("#a64b00", preview_style)
+                self.assertNotEqual(application.styleSheet(), preview_style)
+
+                dialog._save_and_accept()
+                window.apply_settings()
+                self.assertEqual(settings.value("appearance/textSize"), "extra_large")
+                self.assertEqual(settings.value("appearance/density"), "compact")
+                self.assertEqual(settings.value("appearance/contrast"), "high")
+                self.assertEqual(settings.value("appearance/colorTreatment"), "colorblind")
+                self.assertEqual(
+                    application.styleSheet(),
+                    theme_stylesheet(
+                        "light",
+                        text_size="extra_large",
+                        density="compact",
+                        contrast="high",
+                        color_treatment="colorblind",
+                    ),
+                )
+            finally:
+                window.close()
 
 
 if __name__ == "__main__":
