@@ -13,6 +13,7 @@ macXplorer is a NanovionLabs application. See [About NanovionLabs](docs/about-na
 - [Build a macOS application bundle](#build-a-macos-application-bundle)
 - [Tests](#tests)
 - [Documentation](#documentation)
+- [License](#license)
 - [Project status](#project-status)
 
 ## Features
@@ -85,7 +86,16 @@ The tests cover plugin startup, previews, comparisons, workspace behavior, setti
 - [Development guide](docs/development.md): local setup, tests, packaging, and contribution checks.
 - [References](docs/references.md): official Python, Qt, PyQt, Apple, and project attribution references.
 - [About NanovionLabs](docs/about-nanovionlabs.md): company attribution and verified-information boundary.
+- [License policy](docs/license-policy.md): plain-language summary of the MIT License.
+
+## License
+
+macXplorer is distributed under the [MIT License](LICENSE). See the [license policy](docs/license-policy.md) for a plain-language summary. Third-party dependencies may have separate license terms.
 
 ## Project status
 
-macXplorer is actively developed. The repository currently has no published version number, release policy, support commitment, or declared software license. Confirm these items with the project owner before distributing the application or accepting external contributions.
+macXplorer is actively developed. 
+
+## Disclaimer
+
+macXplorer is under development and is provided "as is," without guarantees of availability, fitness, or data safety. Use of the application is at the user's own risk. The user is responsible for evaluating the application before use, maintaining backups, and any consequences of using it. The developer, its associates, and contributors make no commitment to provide support and are not responsible for loss or damage arising from use of the application, to the extent permitted by applicable law.

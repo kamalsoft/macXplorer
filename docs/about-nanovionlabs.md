@@ -12,9 +12,8 @@ The repository does not include an approved NanovionLabs company profile, public
 
 The repository currently does not declare:
 
-- A software license or copyright holder statement.
 - A public support channel or security-reporting contact.
 - A versioning or release policy.
 - A distribution, warranty, or support commitment.
 
-Confirm these details with NanovionLabs before redistributing macXplorer or inviting external contributions.
+The repository includes an MIT License naming NanovionLabs as the copyright holder. Confirm the remaining details with NanovionLabs before redistributing macXplorer or inviting external contributions.
