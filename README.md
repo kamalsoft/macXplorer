@@ -4,6 +4,8 @@ macXplorer is a macOS desktop file manager built with Python and PyQt6. It provi
 
 macXplorer is a NanovionLabs application. See [About NanovionLabs](docs/about-nanovionlabs.md) for the project attribution and the company information available in this repository.
 
+The macOS app and windows use a custom macXplorer icon and an About panel that identifies the publisher and development status. The application is still under development; its presentation does not imply a release, support, or warranty commitment.
+
 ## Contents
 
 - [Features](#features)

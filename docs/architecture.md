@@ -77,6 +77,8 @@ Plugins receive the core window object. They should use its public properties an
 
 The core constructs `QSettings("MacExplorer", "MacExplorer")`. These existing identifiers are intentionally retained across the `macXplorer` display-name change so existing preferences remain available. Current keys include:
 
+Branding is centralized in `core/branding.py`. The SVG in `assets/macXplorer.svg` is the editable icon source; the PNG is used at runtime, and the ICNS resource is embedded in the PyInstaller macOS bundle. The About action uses Qt's `AboutRole` so macOS can place it in the application menu. No approved product version, reverse-DNS bundle identifier, signing identity, or support channel is available; the current bundle therefore still uses PyInstaller's default identity/version placeholders and is not release-ready.
+
 | Key | Meaning |
 | --- | --- |
 | `workspace/leftDirectory` | Left-pane startup location. |

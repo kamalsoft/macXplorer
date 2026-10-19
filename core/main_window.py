@@ -27,6 +27,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from core.branding import AboutDialog, app_icon
 from core.plugin_manager import PluginManager
 from core.theme import (
     COLOR_TREATMENT_OPTIONS,
@@ -54,6 +55,7 @@ class MacXplorer(QMainWindow):
             application.setApplicationDisplayName("macXplorer")
             application.setOrganizationName("MacExplorer")
             application.setFont(QFont("Helvetica Neue"))
+            application.setWindowIcon(app_icon())
         super().__init__()
         self.settings = settings if settings is not None else QSettings("MacExplorer", "MacExplorer")
         if application is not None:
@@ -64,6 +66,7 @@ class MacXplorer(QMainWindow):
             if color_scheme_changed is not None:
                 color_scheme_changed.connect(self._on_system_color_scheme_changed)
         self.setWindowTitle("macXplorer")
+        self.setWindowIcon(app_icon())
         self.resize(1280, 800)
         self.clipboard_paths: list[Path] = []
         self.clipboard_operation = "copy"
@@ -131,7 +134,9 @@ class MacXplorer(QMainWindow):
         layout.addWidget(self.search_box)
         layout.addWidget(self.content_splitter)
         self.setCentralWidget(self.content)
-        self.toolbar = QToolBar("Plugins", self)
+        self.toolbar = QToolBar("macXplorer Actions", self)
+        self.toolbar.setObjectName("mainToolBar")
+        self.toolbar.setAccessibleName("macXplorer actions")
         self.addToolBar(self.toolbar)
         self.statusBar().showMessage("Ready")
         self.new_tab()
@@ -197,6 +202,15 @@ class MacXplorer(QMainWindow):
         self.locations_menu = self.go_menu.addMenu("Locations")
         self.recent_menu = self.go_menu.addMenu("Recent Files")
         self._refresh_go_menus()
+
+        self.help_menu = self.menuBar().addMenu("&Help")
+        self.about_action = QAction("About macXplorer", self)
+        self.about_action.setMenuRole(QAction.MenuRole.AboutRole)
+        self.about_action.triggered.connect(self.show_about)
+        self.help_menu.addAction(self.about_action)
+
+    def show_about(self) -> None:
+        AboutDialog(self).exec()
 
     def _add_action(
         self,
@@ -894,7 +908,7 @@ class MacXplorer(QMainWindow):
         if not left.is_dir() or not right.is_dir():
             QMessageBox.warning(
                 self,
-                "Explorer Settings",
+                "macXplorer Settings",
                 "The configured startup folder no longer exists. Update it in Settings.",
             )
             return

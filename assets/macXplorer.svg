@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101a2b"/>
+      <stop offset="1" stop-color="#24425c"/>
+    </linearGradient>
+    <linearGradient id="fruit" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#ffd38a"/>
+      <stop offset="1" stop-color="#e9a65c"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18"
+                    flood-color="#07111e" flood-opacity=".35"/>
+    </filter>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="224" fill="url(#surface)"/>
+  <path d="M172 230h680a90 90 0 0 1 90 90v384a90 90 0 0 1-90 90H172a90 90 0 0 1-90-90V320a90 90 0 0 1 90-90Z"
+        fill="#17283b" stroke="#d8e7ee" stroke-opacity=".52" stroke-width="10"
+        filter="url(#soft-shadow)"/>
+  <path d="M512 246v532" fill="none" stroke="#d8e7ee" stroke-opacity=".24"
+        stroke-linecap="round" stroke-width="12"/>
+  <text x="136" y="575" fill="#f4f7fa"
+        font-family="Avenir Next, Helvetica Neue, sans-serif"
+        font-size="250" font-weight="700" letter-spacing="-18">m</text>
+  <text x="660" y="575" fill="#f4f7fa"
+        font-family="Avenir Next, Helvetica Neue, sans-serif"
+        font-size="250" font-weight="700" letter-spacing="-18">cX</text>
+  <path d="M488 419c-25 0-45-16-68-4-29 15-33 52-29 86 6 48 33 112 66 112
+           16 0 27-10 46-10s30 10 46 10c33 0 60-64 66-112 4-34 0-71-29-86
+           -23-12-43 4-68 4-12 0-20-5-30-5Z"
+        fill="url(#fruit)"/>
+  <path d="M489 414c-2-27 9-47 32-63" fill="none" stroke="#d8e7ee"
+        stroke-linecap="round" stroke-width="14"/>
+  <path d="M507 365c23-25 56-27 73-22-7 27-31 44-67 40"
+        fill="#83c9aa" stroke="#d8e7ee" stroke-linejoin="round" stroke-width="7"/>
+</svg>

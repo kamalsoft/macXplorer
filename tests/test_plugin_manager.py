@@ -3,13 +3,16 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt6.QtCore import QDir, QMimeData, QSettings, QUrl, Qt
+from PyQt6.QtGui import QAction
 from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QLabel
 
+from core.branding import AboutDialog, app_asset_path
 from core.main_window import MacXplorer
 from core.theme import (
     ADVANCED_THEME_CATALOG,
@@ -34,6 +37,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
                 QApplication.applicationDisplayName(),
                 "macXplorer",
             )
+            self.assertFalse(window.windowIcon().isNull())
             self.assertEqual(
                 set(window.plugin_manager.plugins),
                 {"diff", "preview", "settings", "workspace"},
@@ -50,12 +54,59 @@ class PluginManagerSmokeTest(unittest.TestCase):
             self.assertTrue(window.left_pane.tree.dragEnabled())
             self.assertTrue(window.left_pane.tree.acceptDrops())
             self.assertIn(
-                "Explorer Settings…",
+                "macXplorer Settings…",
                 [action.text() for action in window.menus["File"].actions()],
+            )
+            self.assertIn(
+                "About macXplorer",
+                [action.text() for action in window.help_menu.actions()],
+            )
+            self.assertEqual(
+                window.about_action.menuRole(), QAction.MenuRole.AboutRole
             )
             self.assertFalse(window.plugin_manager.errors)
         finally:
             window.close()
+
+    def test_about_dialog_uses_product_brand_and_development_status(self):
+        self.assertTrue(app_asset_path("macXplorer.png").is_file())
+        self.assertTrue(app_asset_path("macXplorer.svg").is_file())
+        dialog = AboutDialog()
+        try:
+            self.assertEqual(dialog.windowTitle(), "About macXplorer")
+            self.assertFalse(dialog.windowIcon().isNull())
+            self.assertEqual(
+                dialog.findChild(QLabel, "brandTitle").text(),
+                "macXplorer",
+            )
+            self.assertEqual(
+                dialog.findChild(QLabel, "brandStatus").text(),
+                "DEVELOPMENT BUILD",
+            )
+            self.assertEqual(
+                dialog.findChild(QLabel, "brandAttribution").text(),
+                "A NanovionLabs application",
+            )
+        finally:
+            dialog.close()
+
+    def test_app_assets_resolve_from_macos_bundle_resources(self):
+        with tempfile.TemporaryDirectory() as directory:
+            contents = Path(directory) / "macXplorer.app" / "Contents"
+            frameworks = contents / "Frameworks"
+            executable = contents / "MacOS" / "macXplorer"
+            packaged_asset = contents / "Resources" / "assets" / "macXplorer.png"
+            frameworks.mkdir(parents=True)
+            executable.parent.mkdir()
+            packaged_asset.parent.mkdir(parents=True)
+            packaged_asset.write_bytes(b"test image")
+            with (
+                patch("core.branding.sys._MEIPASS", str(frameworks), create=True),
+                patch("core.branding.sys.executable", str(executable)),
+            ):
+                self.assertEqual(
+                    app_asset_path("macXplorer.png"), packaged_asset.resolve()
+                )
 
     def test_preview_plugin_shows_text_and_metadata(self):
         window = MacXplorer()

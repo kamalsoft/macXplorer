@@ -51,7 +51,7 @@ class SettingsPlugin(BasePlugin):
 
     def initialize(self, core_app) -> None:
         self.core_app = core_app
-        self._settings_action = QAction("Explorer Settings…", core_app)
+        self._settings_action = QAction("macXplorer Settings…", core_app)
         self._settings_action.setToolTip("Configure explorer behavior")
         self._settings_action.triggered.connect(self.open_settings)
 
@@ -81,7 +81,7 @@ class SettingsDialog(QDialog):
     def __init__(self, settings: QSettings, parent=None):
         super().__init__(parent)
         self.settings = settings
-        self.setWindowTitle("Explorer Settings")
+        self.setWindowTitle("macXplorer Settings")
         self.setMinimumSize(760, 560)
         self.resize(900, 720)
 

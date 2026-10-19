@@ -6,6 +6,7 @@ import sys
 
 from PyQt6.QtWidgets import QApplication
 
+from core.branding import app_icon
 from core.main_window import MacXplorer
 
 LOGGER = logging.getLogger(__name__)
@@ -74,6 +75,7 @@ def main() -> int:
     app.setApplicationName("macXplorer")
     app.setApplicationDisplayName("macXplorer")
     app.setOrganizationName("MacExplorer")
+    app.setWindowIcon(app_icon())
 
     window = MacXplorer()
     window.show()

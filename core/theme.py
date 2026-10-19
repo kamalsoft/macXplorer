@@ -425,10 +425,30 @@ QMainWindow, QWidget {{
     font-size: {font_size}px;
 }}
 
+QLabel#brandTitle {{
+    color: {colors["text"]};
+    font-size: 28px;
+    font-weight: 600;
+}}
+QLabel#brandTagline {{
+    color: {colors["secondary_text"]};
+    font-size: 14px;
+}}
+QLabel#brandStatus {{
+    color: {colors["accent"]};
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}}
+QLabel#brandAttribution {{
+    color: {colors["secondary_text"]};
+    font-size: 12px;
+}}
+
 QTreeView, QListWidget, QTableWidget {{
     background-color: {colors["surface"]};
     border: {border_width}px solid {colors["border"]};
-    border-radius: 6px;
+    border-radius: 8px;
     color: {colors["secondary_text"]};
     gridline-color: {colors["border"]};
     show-decoration-selected: 1;
@@ -460,7 +480,7 @@ QHeaderView::section {{
 QLineEdit, QComboBox {{
     background-color: {colors["input"]};
     border: {border_width}px solid {colors["border"]};
-    border-radius: 4px;
+    border-radius: 7px;
     padding: {control_padding};
     color: {colors["text"]};
     selection-background-color: {colors["selection"]};
@@ -485,7 +505,7 @@ QToolBar {{
 QToolButton {{
     background-color: {colors["button"]};
     border: {border_width}px solid {colors["button_border"]};
-    border-radius: 4px;
+    border-radius: 7px;
     padding: {control_padding};
     color: {colors["button_text"]};
 }}
@@ -498,13 +518,44 @@ QToolButton:pressed, QPushButton:pressed {{
 
 QLabel {{ color: {colors["secondary_text"]}; }}
 QSplitter::handle {{ background-color: {colors["border"]}; }}
+QGroupBox {{
+    border: {border_width}px solid {colors["border"]};
+    border-radius: 9px;
+    margin-top: 12px;
+    padding: 10px;
+    font-weight: 600;
+}}
+QGroupBox::title {{
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 5px;
+    color: {colors["secondary_text"]};
+}}
+QTabWidget::pane {{
+    border: {border_width}px solid {colors["border"]};
+    border-radius: 8px;
+    top: -1px;
+}}
+QTabBar::tab {{
+    background-color: {colors["header"]};
+    color: {colors["secondary_text"]};
+    border: {border_width}px solid {colors["border"]};
+    border-bottom: none;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    padding: 7px 14px;
+    margin-right: 3px;
+}}
+QTabBar::tab:selected {{
+    background-color: {colors["surface"]};
+    color: {colors["text"]};
+}}
 QPushButton {{
     background-color: {colors["button"]};
     border: {border_width}px solid {colors["button_border"]};
-    border-radius: 4px;
+    border-radius: 7px;
     padding: {control_padding};
     color: {colors["button_text"]};
-    font-weight: bold;
 }}
 QPushButton:default, QLineEdit:focus, QComboBox:focus, QPushButton:focus,
 QTreeView:focus, QListWidget:focus, QTableWidget:focus {{

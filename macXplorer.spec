@@ -5,7 +5,9 @@ a = Analysis(
     ['macXplorer.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+        ('assets/macXplorer.png', 'assets'),
+    ],
     hiddenimports=[
         'plugins.diff_plugin',
         'plugins.preview_plugin',
@@ -34,6 +36,7 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
+    icon='assets/macXplorer.icns',
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
@@ -50,6 +53,6 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='macXplorer.app',
-    icon=None,
+    icon='assets/macXplorer.icns',
     bundle_identifier=None,
 )

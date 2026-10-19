@@ -52,7 +52,7 @@ ZIP extraction rejects entries with absolute paths or parent-directory traversal
 
 ## Preferences
 
-Open **File > Explorer Settings…** to configure. The dialog separates **General** preferences from **Themes** for easier navigation.
+Choose **macXplorer > About macXplorer** for product information and development status. Open **File > macXplorer Settings…** to configure preferences; the dialog separates **General** preferences from **Themes** for easier navigation.
 
 - **General:** Left and right startup folders, favorites, hidden-file visibility, delete confirmation, preview panel visibility, and whether new workspaces start with both panes visible.
 - **Themes:** Appearance presets: macOS Adaptive (System), macOS Light, macOS Dark, Ocean, Forest, Graphite, Warm Night, and Terminal. The Adaptive preset follows macOS appearance changes while the app is open.
