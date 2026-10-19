@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Sequence
 
-from PyQt6.QtCore import QSettings
+from PyQt6.QtCore import QSettings, Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QApplication,
@@ -21,11 +21,14 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QMessageBox,
     QPushButton,
+    QScrollArea,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from core.theme import (
+    ADVANCED_THEME_CATALOG,
     COLOR_TREATMENT_OPTIONS,
     CONTRAST_OPTIONS,
     DENSITY_OPTIONS,
@@ -79,11 +82,22 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.settings = settings
         self.setWindowTitle("Explorer Settings")
-        self.setMinimumWidth(500)
+        self.setMinimumSize(760, 560)
+        self.resize(900, 720)
 
         layout = QVBoxLayout(self)
-        form = QFormLayout()
-        layout.addLayout(form)
+        self.settings_tabs = QTabWidget(self)
+        layout.addWidget(self.settings_tabs, 1)
+
+        general_page = QWidget(self.settings_tabs)
+        general_layout = QVBoxLayout(general_page)
+        general_scroll = QScrollArea(general_page)
+        general_scroll.setWidgetResizable(True)
+        general_content = QWidget(general_scroll)
+        form = QFormLayout(general_content)
+        general_scroll.setWidget(general_content)
+        general_layout.addWidget(general_scroll)
+        self.settings_tabs.addTab(general_page, "General")
 
         self.left_path_input, left_directory = self._directory_input(
             str(settings.value("workspace/leftDirectory", str(Path.home())))
@@ -135,34 +149,46 @@ class SettingsDialog(QDialog):
         self.show_preview.setChecked(self._bool_value("view/showPreview", True))
         form.addRow("Preview:", self.show_preview)
 
+        themes_page = QWidget(self.settings_tabs)
+        themes_layout = QVBoxLayout(themes_page)
+        themes_scroll = QScrollArea(themes_page)
+        themes_scroll.setWidgetResizable(True)
+        themes_content = QWidget(themes_scroll)
+        themes_content_layout = QVBoxLayout(themes_content)
+        themes_form = QFormLayout()
+        themes_content_layout.addLayout(themes_form)
+        themes_scroll.setWidget(themes_content)
+        themes_layout.addWidget(themes_scroll)
+        self.settings_tabs.addTab(themes_page, "Themes")
+
         self.theme_selector = QComboBox(self)
         for label, theme_id in THEME_OPTIONS:
             self.theme_selector.addItem(label, theme_id)
         selected_theme = str(settings.value("appearance/theme", "system")).lower()
         theme_index = self.theme_selector.findData(selected_theme)
         self.theme_selector.setCurrentIndex(theme_index if theme_index >= 0 else 0)
-        form.addRow("Appearance:", self.theme_selector)
+        themes_form.addRow("Active appearance preset:", self.theme_selector)
 
         self.text_size_selector = self._add_choice(
-            form,
+            themes_form,
             "Text size:",
             TEXT_SIZE_OPTIONS,
             str(settings.value("appearance/textSize", "standard")),
         )
         self.density_selector = self._add_choice(
-            form,
+            themes_form,
             "Interface density:",
             DENSITY_OPTIONS,
             str(settings.value("appearance/density", "comfortable")),
         )
         self.contrast_selector = self._add_choice(
-            form,
+            themes_form,
             "Contrast:",
             CONTRAST_OPTIONS,
             str(settings.value("appearance/contrast", "standard")),
         )
         self.color_treatment_selector = self._add_choice(
-            form,
+            themes_form,
             "Color treatment:",
             COLOR_TREATMENT_OPTIONS,
             str(settings.value("appearance/colorTreatment", "standard")),
@@ -199,7 +225,63 @@ class SettingsDialog(QDialog):
         appearance_layout.addWidget(
             QLabel("This preview does not change the app until you save.", appearance_group)
         )
-        layout.addWidget(appearance_group)
+        themes_content_layout.addWidget(appearance_group)
+
+        catalog_group = QGroupBox("Advanced UI theme catalog", themes_content)
+        catalog_layout = QVBoxLayout(catalog_group)
+        catalog_layout.addWidget(
+            QLabel(
+                "Browse design directions and their implementation status. "
+                "Catalog entries are informational and do not change the active preset.",
+                catalog_group,
+            )
+        )
+        self.theme_search = QLineEdit(catalog_group)
+        self.theme_search.setPlaceholderText("Search advanced themes…")
+        self.theme_search.setClearButtonEnabled(True)
+        catalog_layout.addWidget(self.theme_search)
+
+        catalog_content = QHBoxLayout()
+        self.advanced_theme_list = QListWidget(catalog_group)
+        self.advanced_theme_list.setMinimumWidth(220)
+        self.advanced_theme_list.setMaximumHeight(250)
+        self.theme_details = QWidget(catalog_group)
+        details_layout = QVBoxLayout(self.theme_details)
+        details_layout.setContentsMargins(8, 4, 8, 4)
+        self.theme_detail_name = QLabel(self.theme_details)
+        self.theme_detail_name.setStyleSheet("font-weight: bold; font-size: 16px;")
+        self.theme_detail_category = QLabel(self.theme_details)
+        self.theme_detail_status = QLabel(self.theme_details)
+        self.theme_detail_status.setWordWrap(True)
+        self.theme_detail_description = QLabel(self.theme_details)
+        self.theme_detail_description.setWordWrap(True)
+        self.theme_detail_note = QLabel(self.theme_details)
+        self.theme_detail_note.setWordWrap(True)
+        for detail in (
+            self.theme_detail_name,
+            self.theme_detail_category,
+            self.theme_detail_status,
+            self.theme_detail_description,
+            self.theme_detail_note,
+        ):
+            details_layout.addWidget(detail)
+        details_layout.addStretch()
+        catalog_content.addWidget(self.advanced_theme_list, 1)
+        catalog_content.addWidget(self.theme_details, 2)
+        catalog_layout.addLayout(catalog_content)
+        themes_content_layout.addWidget(catalog_group)
+        themes_content_layout.addStretch()
+        for theme_info in ADVANCED_THEME_CATALOG:
+            self.advanced_theme_list.addItem(theme_info.name)
+            self.advanced_theme_list.item(
+                self.advanced_theme_list.count() - 1
+            ).setData(Qt.ItemDataRole.UserRole, theme_info)
+        self.theme_search.textChanged.connect(self._filter_advanced_themes)
+        self.advanced_theme_list.currentItemChanged.connect(
+            self._show_advanced_theme_details
+        )
+        self.advanced_theme_list.setCurrentRow(0)
+
         self.theme_selector.currentIndexChanged.connect(self._update_theme_preview)
         self.text_size_selector.currentIndexChanged.connect(self._update_theme_preview)
         self.density_selector.currentIndexChanged.connect(self._update_theme_preview)
@@ -232,6 +314,51 @@ class SettingsDialog(QDialog):
         buttons.accepted.connect(self._save_and_accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+
+    def _filter_advanced_themes(self, query: str) -> None:
+        search_text = query.strip().casefold()
+        first_visible_row = -1
+        for row in range(self.advanced_theme_list.count()):
+            item = self.advanced_theme_list.item(row)
+            theme_info = item.data(Qt.ItemDataRole.UserRole)
+            searchable = " ".join(
+                (
+                    theme_info.name,
+                    theme_info.category,
+                    theme_info.description,
+                    theme_info.implementation_note,
+                )
+            ).casefold()
+            item.setHidden(bool(search_text) and search_text not in searchable)
+            if not item.isHidden() and first_visible_row < 0:
+                first_visible_row = row
+        if first_visible_row < 0:
+            self.advanced_theme_list.setCurrentRow(-1)
+            self._show_advanced_theme_details(None)
+        elif (
+            self.advanced_theme_list.currentRow() < 0
+            or self.advanced_theme_list.currentItem().isHidden()
+        ):
+            self.advanced_theme_list.setCurrentRow(first_visible_row)
+
+    def _show_advanced_theme_details(self, current, _previous=None) -> None:
+        theme_info = (
+            current.data(Qt.ItemDataRole.UserRole) if current is not None else None
+        )
+        if theme_info is None:
+            self.theme_detail_name.clear()
+            self.theme_detail_category.clear()
+            self.theme_detail_status.clear()
+            self.theme_detail_description.clear()
+            self.theme_detail_note.clear()
+            return
+        self.theme_detail_name.setText(theme_info.name)
+        self.theme_detail_category.setText(f"Category: {theme_info.category}")
+        self.theme_detail_status.setText(
+            "Informational only - this catalog entry is not an active preset."
+        )
+        self.theme_detail_description.setText(theme_info.description)
+        self.theme_detail_note.setText(theme_info.implementation_note)
 
     def _bool_value(self, key: str, default: bool) -> bool:
         value = self.settings.value(key, default)

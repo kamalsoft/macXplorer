@@ -11,7 +11,12 @@ from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication
 
 from core.main_window import MacXplorer
-from core.theme import THEME_OPTIONS, system_theme_name, theme_stylesheet
+from core.theme import (
+    ADVANCED_THEME_CATALOG,
+    THEME_OPTIONS,
+    system_theme_name,
+    theme_stylesheet,
+)
 from plugins.diff_plugin import FileDiffDialog, FolderCompareDialog
 from plugins.settings_plugin import SettingsDialog
 
@@ -406,6 +411,57 @@ class PluginManagerSmokeTest(unittest.TestCase):
                 self.assertEqual(application.styleSheet(), original_stylesheet)
                 dialog.reject()
                 self.assertEqual(settings.value("appearance/theme", "system"), "system")
+            finally:
+                window.close()
+
+    def test_theme_tab_browses_advanced_catalog_without_applying_concepts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            settings = QSettings(
+                str(Path(directory) / "settings.ini"), QSettings.Format.IniFormat
+            )
+            window = MacXplorer(settings=settings)
+            try:
+                dialog = SettingsDialog(settings, window)
+                self.assertEqual(
+                    [
+                        dialog.settings_tabs.tabText(index)
+                        for index in range(dialog.settings_tabs.count())
+                    ],
+                    ["General", "Themes"],
+                )
+                self.assertEqual(
+                    [
+                        dialog.advanced_theme_list.item(index).text()
+                        for index in range(dialog.advanced_theme_list.count())
+                    ],
+                    [theme.name for theme in ADVANCED_THEME_CATALOG],
+                )
+
+                dialog.theme_search.setText("blur")
+                visible_names = [
+                    dialog.advanced_theme_list.item(index).text()
+                    for index in range(dialog.advanced_theme_list.count())
+                    if not dialog.advanced_theme_list.item(index).isHidden()
+                ]
+                self.assertEqual(visible_names, ["Glassmorphism", "Frosted Glass"])
+                self.assertIn("Informational only", dialog.theme_detail_status.text())
+
+                dialog.theme_search.clear()
+                motion_row = next(
+                    index
+                    for index in range(dialog.advanced_theme_list.count())
+                    if dialog.advanced_theme_list.item(index).text() == "Motion-First UI"
+                )
+                dialog.advanced_theme_list.setCurrentRow(motion_row)
+                self.assertIn("Motion-First UI", dialog.theme_detail_name.text())
+                self.assertIn(
+                    "motion system", dialog.theme_detail_note.text().casefold()
+                )
+                self.assertEqual(settings.value("appearance/theme", "system"), "system")
+                self.assertEqual(
+                    QApplication.instance().styleSheet(),
+                    theme_stylesheet(system_theme_name(QApplication.instance())),
+                )
             finally:
                 window.close()
 

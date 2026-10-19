@@ -1,5 +1,7 @@
 """Application styles for built-in appearance presets."""
 
+from typing import NamedTuple
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication
@@ -59,6 +61,155 @@ THEME_OPTIONS = (
     ("Graphite", "graphite"),
     ("Warm Night", "warm_night"),
     ("Terminal", "terminal"),
+)
+
+
+class AdvancedThemeInfo(NamedTuple):
+    name: str
+    category: str
+    description: str
+    implementation_note: str
+
+
+ADVANCED_THEME_CATALOG = (
+    AdvancedThemeInfo(
+        "Glassmorphism",
+        "Transparency and depth",
+        "Uses translucent panels layered over a visible background.",
+        "Informational only: the app does not render backdrop blur or glass transparency.",
+    ),
+    AdvancedThemeInfo(
+        "Liquid Glass",
+        "Transparency and depth",
+        "A fluid glass-like surface treatment with responsive highlights and refraction.",
+        "Informational only: refraction, dynamic highlights, and liquid surfaces are not implemented.",
+    ),
+    AdvancedThemeInfo(
+        "Frosted Glass",
+        "Transparency and depth",
+        "Softens content behind translucent panels with a frosted blur.",
+        "Informational only: Qt stylesheet themes do not provide the required backdrop blur here.",
+    ),
+    AdvancedThemeInfo(
+        "Aurora Gradient",
+        "Color and light",
+        "Uses luminous, flowing color bands inspired by aurora light.",
+        "Informational only: animated gradient backgrounds are not part of the current theme engine.",
+    ),
+    AdvancedThemeInfo(
+        "Mesh Gradient",
+        "Color and light",
+        "Blends several color points into a continuous, multi-dimensional gradient.",
+        "Informational only: mesh-gradient rendering is not implemented.",
+    ),
+    AdvancedThemeInfo(
+        "Holographic",
+        "Color and light",
+        "Applies iridescent, color-shifting highlights to surfaces.",
+        "Informational only: dynamic holographic materials are not implemented.",
+    ),
+    AdvancedThemeInfo(
+        "Neon Glow",
+        "Color and light",
+        "Pairs dark surfaces with bright accents and luminous edge treatments.",
+        "Informational only: the current app has no glow or animated-light rendering.",
+    ),
+    AdvancedThemeInfo(
+        "Ambient UI",
+        "Adaptive interfaces",
+        "Adapts interface lighting and tone to the surrounding environment or context.",
+        "Informational only: ambient sensing and context-adaptive lighting are not implemented.",
+    ),
+    AdvancedThemeInfo(
+        "Soft UI",
+        "Surface treatments",
+        "Uses gentle contrast and soft raised or recessed surface cues.",
+        "Catalog concept only: a Soft UI appearance preset is not currently available.",
+    ),
+    AdvancedThemeInfo(
+        "3D UI",
+        "Spatial and dimensional",
+        "Uses perspective, depth, and three-dimensional controls or transitions.",
+        "Informational only: the app uses standard 2D Qt widgets and has no 3D renderer.",
+    ),
+    AdvancedThemeInfo(
+        "Spatial UI",
+        "Spatial and dimensional",
+        "Places controls and content in a spatial interface with depth-aware interaction.",
+        "Informational only: spatial computing interaction is not supported by this desktop app.",
+    ),
+    AdvancedThemeInfo(
+        "Skeuomorphic 3D",
+        "Spatial and dimensional",
+        "Combines physical-object metaphors, material textures, and dimensional shading.",
+        "Informational only: textured materials and 3D rendering are not implemented.",
+    ),
+    AdvancedThemeInfo(
+        "Paper UI",
+        "Surface treatments",
+        "Suggests paper surfaces with restrained color, texture, and layered content.",
+        "Catalog concept only: paper textures and a dedicated Paper UI preset are not available.",
+    ),
+    AdvancedThemeInfo(
+        "Outline UI",
+        "Surface treatments",
+        "Defines interface regions with clear outlines rather than filled surfaces.",
+        "Catalog concept only: an Outline UI preset is not currently available.",
+    ),
+    AdvancedThemeInfo(
+        "Borderless UI",
+        "Surface treatments",
+        "Reduces visible borders and relies on spacing and hierarchy to separate content.",
+        "Catalog concept only: a Borderless UI preset is not currently available.",
+    ),
+    AdvancedThemeInfo(
+        "Card-Based UI",
+        "Layout patterns",
+        "Groups related content into distinct cards for scanning and organization.",
+        "Informational only: adopting this pattern requires a layout redesign, not just a color preset.",
+    ),
+    AdvancedThemeInfo(
+        "Bento Grid",
+        "Layout patterns",
+        "Arranges content into a modular grid of differently sized, related panels.",
+        "Informational only: the file explorer does not currently use a bento-grid layout.",
+    ),
+    AdvancedThemeInfo(
+        "Floating UI",
+        "Layout patterns",
+        "Uses detached, layered controls or panels that float above the main content.",
+        "Informational only: floating overlay surfaces are not implemented.",
+    ),
+    AdvancedThemeInfo(
+        "Layered UI",
+        "Layout patterns",
+        "Communicates hierarchy through overlapping surfaces and elevation.",
+        "Catalog concept only: layered elevation is not a selectable appearance preset.",
+    ),
+    AdvancedThemeInfo(
+        "Motion-First UI",
+        "Motion and interaction",
+        "Uses animation as a primary way to communicate state and guide interaction.",
+        "Informational only: a motion system is not implemented; reduced-motion behavior is not configurable.",
+    ),
+    AdvancedThemeInfo(
+        "Parallax UI",
+        "Motion and interaction",
+        "Moves foreground and background at different rates to create depth during scrolling.",
+        "Informational only: parallax behavior is not implemented.",
+    ),
+    AdvancedThemeInfo(
+        "Immersive UI",
+        "Motion and interaction",
+        "Uses a full-screen, content-focused environment with minimal surrounding chrome.",
+        "Informational only: a dedicated immersive presentation mode is not implemented.",
+    ),
+    AdvancedThemeInfo(
+        "Generative / AI-Adaptive UI",
+        "Adaptive interfaces",
+        "Uses AI or generative rules to adapt layout, content, or styling to a user or task.",
+        "Informational only: the app does not use AI to generate or adapt its interface.",
+    ),
 )
 
 TEXT_SIZE_OPTIONS = (

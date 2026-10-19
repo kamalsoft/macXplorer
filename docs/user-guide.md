@@ -52,19 +52,15 @@ ZIP extraction rejects entries with absolute paths or parent-directory traversal
 
 ## Preferences
 
-Open **File > Explorer Settings…** to configure:
+Open **File > Explorer Settings…** to configure. The dialog separates **General** preferences from **Themes** for easier navigation.
 
-- Left and right startup folders.
-- Favorites.
-- Hidden-file visibility.
-- Delete confirmation.
-- Preview panel visibility.
-- Whether new workspaces start with both panes visible.
-- Appearance presets: macOS Adaptive (System), macOS Light, macOS Dark, Ocean, Forest, Graphite, Warm Night, and Terminal. The Adaptive preset follows macOS appearance changes while the app is open.
-- Accessibility options: Standard or High Contrast, Standard/Large/Extra Large text, Comfortable or Compact density, and Standard/Colorblind-friendly accents/Grayscale color treatment.
-- An appearance preview shows sample file items, an input field, and an action button. It reflects both the selected preset and accessibility options. Changing options updates only the preview; save the settings to apply them.
+- **General:** Left and right startup folders, favorites, hidden-file visibility, delete confirmation, preview panel visibility, and whether new workspaces start with both panes visible.
+- **Themes:** Appearance presets: macOS Adaptive (System), macOS Light, macOS Dark, Ocean, Forest, Graphite, Warm Night, and Terminal. The Adaptive preset follows macOS appearance changes while the app is open.
+- **Themes:** Accessibility options: Standard or High Contrast, Standard/Large/Extra Large text, Comfortable or Compact density, and Standard/Colorblind-friendly accents/Grayscale color treatment.
+- **Themes:** An appearance preview shows sample file items, an input field, and an action button. It reflects both the selected preset and accessibility options. Changing options updates only the preview; save the settings to apply them.
+- **Themes:** A searchable advanced UI theme catalog provides descriptions and implementation notes for Glassmorphism, Liquid Glass, Frosted Glass, Aurora Gradient, Mesh Gradient, Holographic, Neon Glow, Ambient UI, Soft UI, 3D UI, Spatial UI, Skeuomorphic 3D, Paper UI, Outline UI, Borderless UI, Card-Based UI, Bento Grid, Floating UI, Layered UI, Motion-First UI, Parallax UI, Immersive UI, and Generative / AI-Adaptive UI. Catalog entries are informational; selecting one does not change the app's active appearance.
 
-macXplorer uses Qt's native keyboard and accessibility interfaces. It does not add custom blur, animation, 3D effects, or platform-specific themes for Windows, GNOME, Android, or web browsers.
+macXplorer uses Qt's native keyboard and accessibility interfaces. The catalog explains which concepts require features that are not currently rendered by the app, such as custom blur, animation, 3D effects, and AI-driven adaptation. These entries are not represented as working presets. The app also does not provide platform-specific themes for Windows, GNOME, Android, or web browsers.
 
 Preferences continue to use the existing Qt `QSettings` organization and application identifiers (`MacExplorer`) so renaming the app does not discard saved settings. Settings changes are applied after saving.
 

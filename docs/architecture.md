@@ -88,12 +88,13 @@ The core constructs `QSettings("MacExplorer", "MacExplorer")`. These existing id
 | `appearance/density` | `comfortable` or `compact` control spacing. |
 | `appearance/contrast` | `standard` or `high` contrast. |
 | `appearance/colorTreatment` | `standard`, `colorblind`, or `grayscale` palette treatment. |
+| Advanced UI theme catalog | Static, searchable descriptions in the Settings Themes tab; these concepts are informational and are not persisted or applied as appearance presets. |
 | `files/showHidden` | Whether hidden file-system entries are displayed. |
 | `files/confirmDelete` | Whether Trash operations require confirmation. |
 | `view/showPreview` | Whether the preview panel is visible. |
 | `history/recentFiles` | Recently opened local file paths. |
 
-The settings dialog validates startup directories before saving and calls `sync()` to persist changes. Its appearance sample renders the selected preset and accessibility options locally without changing the running app. `apply_settings()` updates existing panes, the preview panel, and the application stylesheet after settings are saved. In system mode, the core listens for Qt color-scheme change notifications and refreshes the stylesheet. Themes that require blur, motion, 3D rendering, or another desktop platform's widget system are outside the stylesheet-based theme implementation.
+The settings dialog separates general preferences and appearance controls into General and Themes tabs. The Themes tab also includes a searchable catalog of advanced design concepts with implementation notes; catalog selection is descriptive only. The dialog validates startup directories before saving and calls `sync()` to persist changes. Its appearance sample renders the selected preset and accessibility options locally without changing the running app. `apply_settings()` updates existing panes, the preview panel, and the application stylesheet after settings are saved. In system mode, the core listens for Qt color-scheme change notifications and refreshes the stylesheet. Themes that require blur, motion, 3D rendering, or another desktop platform's widget system are outside the stylesheet-based theme implementation.
 
 ## Clipboard and file operations
 
