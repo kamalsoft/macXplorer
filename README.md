@@ -84,11 +84,12 @@ The tests cover plugin startup, previews, comparisons, workspace behavior, setti
 ## Documentation
 
 - [User guide](docs/user-guide.md): navigation, file operations, settings, and keyboard shortcuts.
-- [Architecture and technical reference](docs/architecture.md): component boundaries, plugin lifecycle, settings, file operations, and extension contract.
-- [Development guide](docs/development.md): local setup, tests, packaging, and contribution checks.
+- [Architecture and technical reference](docs/architecture.md): verified repository structure, startup and feature traces, signal/slot map, plugin lifecycle, dependency map, risks, and learning path.
+- [Development guide](docs/development.md): source map, local setup, plugin development, tests, packaging, and contribution checks.
 - [References](docs/references.md): official Python, Qt, PyQt, Apple, and project attribution references.
 - [About NanovionLabs](docs/about-nanovionlabs.md): company attribution and verified-information boundary.
 - [License policy](docs/license-policy.md): plain-language summary of the MIT License.
+- Project-scoped coding-assistant skills are documented in the [development guide](docs/development.md#project-skills-for-coding-assistants).
 
 ## License
 

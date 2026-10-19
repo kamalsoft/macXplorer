@@ -20,13 +20,29 @@ python macXplorer.py
 ## Repository layout
 
 ```text
-core/                 Application shell, reusable widgets, plugin manager, theme
-plugins/              Built-in plugins and plugin contract
-tests/                unittest integration and behavior tests
-docs/                 User, architecture, development, and reference documents
-macXplorer.py         Application entry point
-macXplorer.spec       PyInstaller application-bundle definition (outputs macXplorer.app)
+macXplorer.py          QApplication startup and event-loop entry
+core/
+  main_window.py       Main window, shared state, file operations, settings
+  widgets.py           FilePane, WorkspaceTab, Qt models and views
+  plugin_manager.py    Plugin discovery, validation, and action registration
+  theme.py             Theme presets and stylesheet composition
+  branding.py          App icon, asset lookup, and About dialog
+plugins/
+  base.py               BasePlugin contract and PluginMetadata
+  diff_plugin.py        Folder and file comparison
+  preview_plugin.py     Text, image, and metadata preview
+  settings_plugin.py    Settings dialog and persistence
+  workspace_plugin.py   Dual-pane and workspace actions
+  __init__.py           Built-in plugin list for packaged builds
+tests/
+  test_plugin_manager.py  Qt integration and behavior tests
+assets/                   SVG, PNG, and ICNS application icons
+docs/                     User, architecture, development, and reference docs
+.agents/skills/           Project-scoped repository and implementation skills
+macXplorer.spec           PyInstaller bundle definition
 ```
+
+See [Architecture and Technical Reference](architecture.md) for the verified startup sequence, function-level feature traces, signal/slot map, dependencies, risk notes, Mermaid diagrams, and a prioritized source-reading path.
 
 ## Adding a plugin
 
@@ -39,6 +55,15 @@ macXplorer.spec       PyInstaller application-bundle definition (outputs macXplo
 7. Run the full test suite.
 
 Keep plugins focused. Core-level state and shared file operations belong in the core; feature-specific interfaces and logic belong in plugins.
+
+## Project skills for coding assistants
+
+Two concise, project-scoped skills guide assistants:
+
+- [Repository guide](../.agents/skills/macxplorer-repository-guide/SKILL.md) explains macXplorer from inspected source and distinguishes verified behavior from assumptions.
+- [Approval-first changes](../.agents/skills/macxplorer-approval-first-changes/SKILL.md) clarifies ambiguous behavior and requires a concrete implementation plan to be approved before edits.
+
+The skills are workflow guidance, not a substitute for source inspection, tests, or review. Use the architecture guide as the repository map and verify current source before relying on any prior description.
 
 ## Validation
 

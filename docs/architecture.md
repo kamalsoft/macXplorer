@@ -1,53 +1,115 @@
 # Architecture and Technical Reference
 
-## System context
+## Repository structure
 
-macXplorer is a desktop application implemented in Python with PyQt6. It uses Qt widgets and models for its user interface and local file-system browsing. macOS-specific integration includes the process display name and Finder operations such as moving items to Trash and revealing files.
+The tree below lists source, assets, tests, and documentation that define or verify application behavior. `.venv/`, `build/`, `dist/`, bytecode caches, and `.memory/` are local or generated directories ignored by `.gitignore`; they are not application source.
 
-```text
-macXplorer.py
-  QApplication and macOS process identity
-  MacXplorer (core/main_window.py; main-window class)
-    PluginManager
-    QTabWidget
-      WorkspaceTab (one per tab)
-        FilePane: QFileSystemModel + proxy + tree/list views
-        FilePane: QFileSystemModel + proxy + tree/list views
-    Preview panel
-    Shared menus, toolbar, settings, clipboard, and file operations
-  plugins/
-    DiffPlugin
-    PreviewPlugin
-    SettingsPlugin
-    WorkspacePlugin
+| Path | Responsibility |
+| --- | --- |
+| `macXplorer.py` | `main()`, `QApplication` creation, process identity, and event-loop entry. |
+| `core/main_window.py` | `MacXplorer`, shared window state, menus, tabs, navigation, file operations, clipboard, and settings application. |
+| `core/widgets.py` | `FilePane`, `WorkspaceTab`, Qt filesystem models/views, path history, selection, and focus signals. |
+| `core/plugin_manager.py` | Plugin discovery, validation, initialization, and toolbar/menu registration. |
+| `core/theme.py` | Preset palettes, advanced-style metadata, accessibility options, and QSS generation. |
+| `core/branding.py` | Resolves runtime and packaged assets; creates the icon and About dialog. |
+| `core/__init__.py` | Core package marker. |
+| `plugins/base.py` | `BasePlugin` abstract contract and immutable `PluginMetadata`. |
+| `plugins/__init__.py` | `BUILTIN_PLUGIN_MODULES` fallback for packaged builds. |
+| `plugins/diff_plugin.py` | Folder comparison and text file diff dialogs. |
+| `plugins/preview_plugin.py` | Preview plugin and text, image, and metadata preview widget. |
+| `plugins/settings_plugin.py` | Settings action, General and Themes UI, validation, preview, and persistence. |
+| `plugins/workspace_plugin.py` | Dual-pane toggle and navigation actions/shortcuts. |
+| `tests/test_plugin_manager.py` | Qt integration and behavior tests across core and plugins. |
+| `tests/__init__.py` | Test package marker. |
+| `assets/macXplorer.svg` | Editable icon source. |
+| `assets/macXplorer.png` | Runtime icon image packaged as application data. |
+| `assets/macXplorer.icns` | macOS application bundle icon. |
+| `macXplorer.spec` | PyInstaller analysis, dynamic-plugin hidden imports, resources, and bundle settings. |
+| `README.md` | Project summary, installation, run/build/test commands, and documentation index. |
+| `LICENSE` | MIT license text. |
+| `.gitignore` | Excludes Python caches, environments, local state, macOS metadata, and build outputs. |
+| `docs/user-guide.md` | User workflows and supported feature boundaries. |
+| `docs/development.md` | Developer setup, plugin development, test, and build instructions. |
+| `docs/references.md` | Primary framework and platform references. |
+| `docs/about-nanovionlabs.md` | Verified attribution and limits on company claims. |
+| `docs/license-policy.md` | Plain-language license summary. |
+| `.agents/skills/` | Project-scoped repository-guide and approval-first implementation skills. |
+
+The repository has no `requirements.txt`, `pyproject.toml`, or dependency lock file. PyQt6 is the runtime framework imported by the application. PyInstaller is a separate packaging tool invoked for bundle builds. The exact installed versions are environment-dependent and are not pinned by this repository.
+
+## Dependency map
+
+Arrows mean “depends on or calls into”; they do not represent user data flow.
+
+```mermaid
+flowchart TD
+    Entry["macXplorer.py<br/>main()"] -->|constructs| Core["core/main_window.py<br/>MacXplorer"]
+    Core -->|creates| Widgets["core/widgets.py<br/>FilePane and WorkspaceTab"]
+    Core -->|loads through| PluginManager["core/plugin_manager.py<br/>PluginManager"]
+    Core -->|styles with| Theme["core/theme.py<br/>theme_stylesheet()"]
+    Core -->|gets identity from| Branding["core/branding.py<br/>app_icon() and AboutDialog"]
+    PluginManager -->|validates against| Contract["plugins/base.py<br/>BasePlugin"]
+    PluginManager -->|reads built-in names from| PluginModules["plugins/__init__.py<br/>built-in module names"]
+    PluginManager -->|imports| Diff["plugins/diff_plugin.py"]
+    PluginManager -->|imports| Preview["plugins/preview_plugin.py"]
+    PluginManager -->|imports| Settings["plugins/settings_plugin.py"]
+    PluginManager -->|imports| Workspace["plugins/workspace_plugin.py"]
+    Diff -->|implements| Contract
+    Preview -->|implements| Contract
+    Settings -->|implements| Contract
+    Workspace -->|implements| Contract
+    Tests["tests/test_plugin_manager.py"] -->|exercises| Core
+    Tests -->|exercises| Diff
+    Tests -->|exercises| Preview
+    Tests -->|exercises| Settings
+    Tests -->|exercises| Workspace
 ```
 
-The core owns application-level state and common operations. Plugins contribute focused UI or behavior through the plugin contract. File panes and workspace tabs are reusable widgets in `core/widgets.py`.
+## Startup flow
 
-## Runtime lifecycle
+`main()` in `macXplorer.py` sets a native process name on macOS, prepares the Qt argument list, creates `QApplication`, sets application and organization names, and assigns the app icon. It constructs `MacXplorer`, shows the window, then starts `app.exec()`.
 
-1. `macXplorer.py` sets the native macOS process name when running on macOS, creates `QApplication`, and sets application identity.
-2. `MacXplorer` builds its menus, plugin toolbar, search field, and initial workspace. The user-facing application name is `macXplorer`.
-3. `PluginManager` discovers Python modules under `plugins/`, also including the built-in module list for frozen builds.
-4. Each plugin class is instantiated, checked for metadata, initialized with the core application, and asked for toolbar and menu actions.
-5. The core enters the Qt event loop.
+`MacXplorer.__init__()` configures app identity and preferences, applies the initial theme, and connects the system color-scheme notification when available. It calls `_build_ui()` to create the central splitter, tab widget, search field, toolbar, and first workspace. It then calls `_create_menus()`, constructs `PluginManager`, and calls `_load_plugins()`.
 
-Plugin import, initialization, or registration failures are logged and collected by the manager. Startup displays a warning if plugin loading produced errors.
+`PluginManager.load_plugins()` obtains module names from `pkgutil.iter_modules()` and `BUILTIN_PLUGIN_MODULES`, imports each module, identifies concrete `BasePlugin` subclasses defined by that module, validates metadata and unique IDs, invokes `initialize(core_app)`, and registers returned actions. Failures are logged and collected; `_load_plugins()` displays a warning if any occurred. Dynamic plugin imports execute Python module code in the application's process; the plugin manager does not sandbox plugins.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Entry as macXplorer.py main()
+    participant Qt as QApplication
+    participant Window as MacXplorer.__init__()
+    participant Manager as PluginManager
+    participant Plugins as Built-in plugins
+    User->>Entry: Launch application
+    Entry->>Entry: Set macOS process identity when applicable
+    Entry->>Qt: Create app and set identity
+    Entry->>Window: Construct MacXplorer
+    Window->>Window: Build UI, menus, and first workspace
+    Window->>Manager: Create manager and load plugins
+    Manager->>Plugins: Import, initialize, register actions
+    Entry->>Qt: Show window and enter app.exec()
+```
 
 ## Main components
 
 | Component | Responsibility |
 | --- | --- |
-| `macXplorer.py` | Process identity, `QApplication` setup, event-loop entry point. |
-| `core/main_window.py` | Main window, tabs, active pane, menus, settings application, clipboard state, search, navigation actions, and common file operations. |
-| `core/widgets.py` | `FilePane`, focus-aware views and path entry, file-system model/proxy, per-pane history, image filtering, and `WorkspaceTab`. |
-| `core/plugin_manager.py` | Plugin discovery, validation, initialization, and registration of toolbar/menu actions. |
-| `core/theme.py` | Shared dark palette and widget style sheet. |
-| `plugins/base.py` | Abstract `BasePlugin` API and immutable `PluginMetadata`. |
-| `plugins/diff_plugin.py` | Recursive folder comparison and unified text-file diff dialogs. |
-| `plugins/preview_plugin.py` | Preview panel with text, image, and metadata rendering. |
-| `plugins/workspace_plugin.py` | Dual-pane toggle and workspace navigation actions. |
-| `plugins/settings_plugin.py` | Settings menu action, preference dialog, validation, and persistence. |
+| `macXplorer.py` | Process identity, `QApplication` setup, and event loop. |
+| `MacXplorer._build_ui()` | Central splitter, tabs, search field, toolbar, status bar, and initial workspace. |
+| `MacXplorer._create_menus()` | File, Edit, View, Tools, Go, and Help menu actions and shortcuts. |
+| `MacXplorer.new_tab()` | Creates a `WorkspaceTab`, connects its panes, installs context menus, and selects the left pane. |
+| `MacXplorer._load_plugins()` | Invokes plugin loading and surfaces startup errors. |
+| `core/widgets.py` | File-pane widgets, filesystem models, proxy filters, per-pane navigation, and workspace splitter. |
+| `core/plugin_manager.py` | Runtime plugin discovery, contract checks, initialization, and action registration. |
+| `core/theme.py` | Appearance options and stylesheet composition. |
+| `core/branding.py` | Packaged/source asset lookup and About UI. |
+| `plugins/base.py` | Plugin abstract methods and metadata type. |
+| `plugins/diff_plugin.py` | Recursive folder comparison and unified text-file comparison. |
+| `plugins/preview_plugin.py` | Text, image, and file metadata preview. |
+| `plugins/workspace_plugin.py` | Dual-pane toggle and navigation shortcuts. |
+| `plugins/settings_plugin.py` | Settings UI, validation, preview, persistence, and apply trigger. |
+| `tests/test_plugin_manager.py` | Integration and behavior tests. |
 
 ## File navigation and views
 
@@ -56,6 +118,46 @@ Each `FilePane` has a `QFileSystemModel` configured for writable file operations
 The pane maintains its own navigation history. `WorkspaceTab` owns two panes and their horizontal splitter. The main window's active pane is updated when a pane's view or path field receives focus. The `fileSelected` signal communicates active selection changes to interested plugins, including Preview.
 
 The main search field applies a fixed string filter to each open pane's proxy model. This is a display filter, not an indexed search engine.
+
+### Qt widgets, signals, slots, and events
+
+`MacXplorer` subclasses `QMainWindow`. Its central widget has a vertical layout containing a search field and a horizontal `QSplitter`. The splitter contains the `QTabWidget`; `PreviewPlugin` adds its preview panel to that splitter. A `QToolBar`, menu bar, and `QStatusBar` are also attached to the window. Each `WorkspaceTab` owns a horizontal `QSplitter` and two `FilePane` widgets. A pane combines a `QFileSystemModel`, a `QSortFilterProxyModel`, a path-entry widget, and tree/list views. The proxy maps view indexes to filesystem model indexes for selection and navigation.
+
+Signals are the main communication mechanism between widgets and the window:
+
+| Signal/event | Producer | Consumer/effect |
+| --- | --- | --- |
+| `FilePane.currentPathChanged(str)` | `FilePane.navigate_to()` and current-index changes | Updates the active pane's status path and emits `MacXplorer.fileSelected`. |
+| `FilePane.directoryChanged(str)` | `FilePane.navigate_to()` | Updates the workspace tab label when its workspace is current. |
+| `FilePane.fileActivated(str)` | File view activation | Navigates into directories in `FilePane`; opens files through `QDesktopServices` in the main window. |
+| `FilePane.focused()` and focus-aware child `focused()` signals | Pane path bar, tree, list, and view container | Select that pane as active via `MacXplorer._set_active_pane()`. |
+| `MacXplorer.fileSelected(str)` | Current-index change in the active pane, pane focus, workspace change | Connected by `PreviewPlugin` to update the preview. |
+| `QTabWidget.currentChanged` | Tab widget | Calls `_on_workspace_changed()` to restore that workspace's active pane and selection. |
+| `QLineEdit.textChanged` | Main search box | Calls `on_search_changed()` to filter both panes in every open workspace. |
+| `QAction.triggered` | Menu, toolbar, or shortcut action | Calls the corresponding core or plugin slot. |
+
+The standard Qt event loop dispatches these events and signal-slot callbacks. Keyboard shortcuts are attached to `QAction` objects, not implemented as a separate application-level key-event loop. The file-pane focus signal is what switches the active pane, so commands such as copy, paste, navigation, and view-mode changes operate on the pane with focus.
+
+### Navigation, tabs, and dual panes
+
+`FilePane.navigate_to()` verifies that the target is a directory, resolves model/proxy indexes, updates view roots and the path bar, records history when requested, then emits path/directory signals. `go_back()`, `go_forward()`, `go_to_parent()`, and `go_to_home()` use the pane's history or current path. `filter_files()` updates the proxy model; `set_view_mode()` selects details, list, or icon presentation.
+
+`MacXplorer.new_tab()` creates a `WorkspaceTab` with left and right panes, using startup settings or the active pane's current location as appropriate. It connects pane signals and context menus. `_on_workspace_changed()` restores the active pane for the selected workspace. `close_tab()` ensures that a last remaining workspace is replaced rather than leaving the tab widget empty. `WorkspaceTab.set_dual_pane()` toggles right-pane visibility; the Workspace plugin routes its toolbar/menu actions to the current workspace. The `Ctrl+Shift+D` View action also calls `MacXplorer.toggle_dual_pane()`, which delegates to the plugin when loaded and otherwise toggles the workspace directly.
+
+### Clipboard, previews, and settings flow
+
+| Feature | Flow |
+| --- | --- |
+| Copy/cut/paste | `copy_item()` or `cut_item()` calls `_set_clipboard()`, which stores the internal paths and operation and publishes local-file URLs through `QClipboard`/`QMimeData`. `paste_item()` reads that internal state (or local-file URLs from the system clipboard), checks the destination and overwrite choice, then uses `shutil` to copy or move. |
+| Preview | `FilePane` focus/selection changes reach `MacXplorer.fileSelected`. `PreviewPlugin.initialize()` connects the signal to `update_preview()`. `view/showPreview` controls visibility through `PreviewPlugin.set_visible()`. |
+| Preferences | `SettingsPlugin` opens `SettingsDialog`; `_save_and_accept()` validates paths, writes `QSettings`, calls `sync()`, and checks its status. The plugin then asks the core to apply settings. `MacXplorer.apply_settings()` updates pane options, preview visibility, and the stylesheet. |
+| Appearance | `theme_stylesheet()` in `core/theme.py` combines the saved color preset, supported advanced style, text size, density, contrast, and color treatment. System mode uses Qt's reported color scheme, and a Qt color-scheme notification causes the core to refresh the stylesheet. |
+
+### Shared state and dependencies
+
+`MacXplorer` is the composition root and holds shared state used by core actions and plugins: settings (`QSettings`), current/active workspace and pane, the in-process clipboard path list and operation, and the `fileSelected` signal. Plugins receive the full core window in `initialize(core_app)` and currently access its properties/methods directly. This is a simple integration boundary, but it couples plugins to the main window API; preserve or test those call sites when changing core names or behavior.
+
+The application uses Python standard-library modules for filesystem operations, archive handling, dynamic imports, subprocess calls, and resource discovery. PyQt6 provides the GUI, models, signals, clipboard, settings, and desktop URL opening. macOS integration is explicit rather than a cross-platform abstraction: process naming uses `ctypes` with Foundation/Objective-C when on Darwin; Finder Trash uses `/usr/bin/osascript`; Finder reveal uses `open -R`. The code does not elevate privileges or bypass OS privacy controls.
 
 ## Plugin contract
 
@@ -109,7 +211,20 @@ Moving to Trash is implemented through Finder AppleScript using `/usr/bin/osascr
 
 ZIP extraction validates archive member paths and stages extraction in a temporary sibling directory before renaming it into place. ZIP creation checks that the output is not a selected source and does not place the output inside a selected source directory.
 
-## Error handling and security considerations
+## Verified risks and maintenance priorities
+
+These are repository observations, not a claim that a vulnerability has been exploited. Items labeled **Potential** need targeted threat-model or runtime testing before being treated as confirmed defects.
+
+| Priority | Status | Finding and evidence | Recommended next step |
+| --- | --- | --- | --- |
+| High | Verified | No dependency manifest or lock file is present, so a fresh environment cannot reproduce exact PyQt6/PyInstaller versions from repository metadata. | Adopt a supported dependency-management approach and record tested versions before release. |
+| High | Verified boundary; risk depends on plugin source | `PluginManager` imports discovered modules and invokes plugin initialization in-process with the full `MacXplorer` instance. There is no plugin sandbox. | Treat the plugin directory as trusted executable code; define signing/allowlisting or another trust policy before accepting third-party plugins. |
+| Medium | Potential resource-exhaustion concern | `_extract_zip_to()` validates member paths and stages extraction, but the implementation does not impose archive-size, expanded-size, member-count, or compression-ratio limits. | Add bounded extraction policy and tests if archives from untrusted sources are in scope. Path traversal checks alone do not limit resource consumption. |
+| Medium | Verified test-scope limitation | The test suite is concentrated in `tests/test_plugin_manager.py` and runs with Qt offscreen; this does not verify native Finder dialogs, privacy prompts, code signing, or notarization. | Add focused tests where useful and maintain a manual macOS bundle/release checklist. |
+| Medium | Verified coupling | Plugins are injected with the complete main-window object rather than a narrow typed service interface. | Keep plugin/core call sites covered by tests; consider a smaller interface only if the plugin surface grows. |
+| Release gate | Verified packaging state | `macXplorer.spec` has no configured signing identity and the repository does not declare a support channel or tested release matrix. | Set release metadata, target OS versions, signing/notarization procedure, and support policy before publishing. |
+
+### Error handling and security considerations
 
 - File-system, subprocess, and archive failures are logged and shown in dialogs or status messages where the operation has a user-facing flow.
 - ZIP member names are checked before extraction to prevent parent-path escapes.
@@ -128,3 +243,18 @@ QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -v
 ```
 
 `macXplorer.spec` builds a windowed application bundle named `macXplorer.app`. Plugin modules that PyInstaller cannot detect through dynamic imports are listed in `hiddenimports`.
+
+## Prioritized learning path
+
+Follow the runtime path first, then trace the features through signals and plugin boundaries. The function names below are present in the current source; this order is for orientation, not a claim that every implementation detail is covered here.
+
+1. **Launch:** `macXplorer.py` — `main()` and `set_macos_process_name()`.
+2. **Composition root and startup:** `core/main_window.py` — `MacXplorer.__init__()`, `_build_ui()`, `_create_menus()`, `_load_plugins()`.
+3. **Models and pane lifecycle:** `core/widgets.py` — `FilePane.__init__()`, `navigate_to()`, `filter_files()`, `selected_path()`, and `WorkspaceTab.set_dual_pane()`.
+4. **Plugin contract and lifecycle:** `plugins/base.py` — `BasePlugin`; then `core/plugin_manager.py` — `load_plugins()` and validation/registration helpers; finally `plugins/__init__.py`.
+5. **Tabs and active pane:** `core/main_window.py` — `new_tab()`, `close_tab()`, `_on_workspace_changed()`, `_set_active_pane()`.
+6. **Clipboard and file operations:** `core/main_window.py` — `_set_clipboard()`, `paste_item()`, `_move_to_trash()`, `_create_zip()`, `_extract_zip_to()`.
+7. **Plugin feature flows:** `plugins/preview_plugin.py` — `initialize()`, `update_preview()`, `set_visible()`; `plugins/diff_plugin.py`; `plugins/workspace_plugin.py`.
+8. **Settings and appearance:** `plugins/settings_plugin.py` — `SettingsDialog._save_and_accept()`; `core/main_window.py` — `apply_settings()`; `core/theme.py` — `theme_stylesheet()`.
+9. **Behavioral verification:** `tests/test_plugin_manager.py` — begin with startup/registration, workspace, clipboard/ZIP, preview/diff, and settings/theme tests.
+10. **Distribution boundary:** `macXplorer.spec`, `core/branding.py`, `docs/development.md`, and `docs/license-policy.md`.
