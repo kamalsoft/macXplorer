@@ -86,17 +86,18 @@ Branding is centralized in `core/branding.py`. The SVG in `assets/macXplorer.svg
 | `workspace/favorites` | Persisted list of favorite directory paths. |
 | `workspace/dualPane` | Whether new workspaces show both panes. |
 | `appearance/theme` | `system`, `light`, `dark`, `ocean`, `forest`, `graphite`, `warm_night`, or `terminal`; system follows Qt's reported OS color scheme. |
+| `appearance/advancedStyle` | `standard`, `soft_ui`, `neon`, `paper_ui`, `outline`, `borderless`, or `card_based`; composes a Qt-compatible surface treatment with the selected color preset. |
 | `appearance/textSize` | `standard`, `large`, or `extra_large` text. |
 | `appearance/density` | `comfortable` or `compact` control spacing. |
 | `appearance/contrast` | `standard` or `high` contrast. |
 | `appearance/colorTreatment` | `standard`, `colorblind`, or `grayscale` palette treatment. |
-| Advanced UI theme catalog | Static, searchable descriptions in the Settings Themes tab; these concepts are informational and are not persisted or applied as appearance presets. |
+| Advanced UI theme catalog | Searchable descriptions and implementation notes. Entries with a supported style ID synchronize with `appearance/advancedStyle`; unsupported concepts remain informational. |
 | `files/showHidden` | Whether hidden file-system entries are displayed. |
 | `files/confirmDelete` | Whether Trash operations require confirmation. |
 | `view/showPreview` | Whether the preview panel is visible. |
 | `history/recentFiles` | Recently opened local file paths. |
 
-The settings dialog separates general preferences and appearance controls into General and Themes tabs. In the Themes tab, a searchable catalog of advanced design concepts and implementation notes appears directly below the active appearance preset; catalog selection is descriptive only. The dialog validates startup directories before saving and calls `sync()` to persist changes. Its appearance sample renders the selected preset and accessibility options locally without changing the running app. `apply_settings()` updates existing panes, the preview panel, and the application stylesheet after settings are saved. In system mode, the core listens for Qt color-scheme change notifications and refreshes the stylesheet. Themes that require blur, motion, 3D rendering, or another desktop platform's widget system are outside the stylesheet-based theme implementation.
+The settings dialog separates general preferences and appearance controls into General and Themes tabs. In the Themes tab, the Advanced style selector and searchable catalog stay synchronized for supported styles. Selecting a supported catalog entry updates the selector; selecting an unsupported entry leaves the active style unchanged. The selected style composes with the color preset, while accessibility choices take precedence for conflicting contrast and color treatments. The dialog validates startup directories before saving and calls `sync()` to persist changes. Its appearance sample renders the selected preset, advanced style, and accessibility options locally without changing the running app. `apply_settings()` updates existing panes, the preview panel, and the application stylesheet after settings are saved. In system mode, the core listens for Qt color-scheme change notifications and refreshes the stylesheet. Themes that require blur, motion, 3D rendering, or another desktop platform's widget system remain informational.
 
 ## Clipboard and file operations
 

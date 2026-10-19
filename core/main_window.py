@@ -30,6 +30,7 @@ from PyQt6.QtWidgets import (
 from core.branding import AboutDialog, app_icon
 from core.plugin_manager import PluginManager
 from core.theme import (
+    ADVANCED_STYLE_OPTIONS,
     COLOR_TREATMENT_OPTIONS,
     CONTRAST_OPTIONS,
     DENSITY_OPTIONS,
@@ -872,9 +873,13 @@ class MacXplorer(QMainWindow):
         color_treatment = self._appearance_choice(
             "appearance/colorTreatment", "standard", COLOR_TREATMENT_OPTIONS
         )
+        advanced_style = self._appearance_choice(
+            "appearance/advancedStyle", "standard", ADVANCED_STYLE_OPTIONS
+        )
         application.setStyleSheet(
             theme_stylesheet(
                 resolved_theme,
+                advanced_style=advanced_style,
                 text_size=text_size,
                 density=density,
                 contrast=contrast,

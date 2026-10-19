@@ -10,11 +10,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtCore import QDir, QMimeData, QSettings, QUrl, Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication, QLabel
+from PyQt6.QtWidgets import QApplication, QLabel, QScrollArea
 
 from core.branding import AboutDialog, app_asset_path
 from core.main_window import MacXplorer
 from core.theme import (
+    ADVANCED_STYLE_OPTIONS,
     ADVANCED_THEME_CATALOG,
     THEME_OPTIONS,
     system_theme_name,
@@ -465,7 +466,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
             finally:
                 window.close()
 
-    def test_theme_tab_browses_advanced_catalog_without_applying_concepts(self):
+    def test_theme_tab_keeps_unsupported_catalog_concepts_informational(self):
         with tempfile.TemporaryDirectory() as directory:
             settings = QSettings(
                 str(Path(directory) / "settings.ini"), QSettings.Format.IniFormat
@@ -481,8 +482,19 @@ class PluginManagerSmokeTest(unittest.TestCase):
                     ["General", "Themes"],
                 )
                 self.assertEqual(
-                    dialog.themes_content_layout.itemAt(1).widget().title(),
-                    "Advanced UI theme catalog",
+                    {
+                        dialog.themes_sections_layout.itemAtPosition(row, column)
+                        .widget()
+                        .objectName()
+                        for row in range(2)
+                        for column in range(2)
+                    },
+                    {
+                        "appearanceGroup",
+                        "accessibilityGroup",
+                        "advancedThemeCatalog",
+                        "appearancePreview",
+                    },
                 )
                 self.assertEqual(
                     [
@@ -520,6 +532,156 @@ class PluginManagerSmokeTest(unittest.TestCase):
             finally:
                 window.close()
 
+    def test_theme_tab_groups_sections_in_a_two_column_layout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            settings = QSettings(
+                str(Path(directory) / "settings.ini"), QSettings.Format.IniFormat
+            )
+            dialog = SettingsDialog(settings)
+            try:
+                layout = dialog.themes_sections_layout
+                section_positions = {
+                    layout.itemAtPosition(row, column).widget().objectName(): (
+                        row,
+                        column,
+                    )
+                    for row in range(2)
+                    for column in range(2)
+                }
+                self.assertEqual(
+                    section_positions,
+                    {
+                        "appearanceGroup": (0, 0),
+                        "accessibilityGroup": (0, 1),
+                        "advancedThemeCatalog": (1, 0),
+                        "appearancePreview": (1, 1),
+                    },
+                )
+                self.assertLessEqual(dialog.advanced_theme_list.maximumHeight(), 180)
+                dialog.resize(900, 720)
+                dialog.show()
+                QApplication.processEvents()
+                themes_scroll = dialog.findChild(QScrollArea)
+                self.assertEqual(themes_scroll.verticalScrollBar().maximum(), 0)
+            finally:
+                dialog.close()
+
+    def test_advanced_styles_compose_with_presets_and_accessibility(self):
+        styles = {
+            style_id: theme_stylesheet("dark", advanced_style=style_id)
+            for _label, style_id in ADVANCED_STYLE_OPTIONS
+        }
+        self.assertEqual(len(styles), len(ADVANCED_STYLE_OPTIONS))
+        for style_id in styles.keys() - {"standard"}:
+            self.assertNotEqual(styles[style_id], styles["standard"])
+        self.assertIn("border-radius: 12px", styles["soft_ui"])
+        self.assertIn("#57f5d4", styles["neon"])
+        self.assertIn("background-color: #29271f", styles["paper_ui"])
+        self.assertIn(
+            "QLineEdit, QComboBox {\n    background-color: #1e1e1e;",
+            styles["outline"],
+        )
+        self.assertIn("border: none", styles["borderless"])
+        self.assertIn("margin: 2px 4px", styles["card_based"])
+        high_contrast_paper = theme_stylesheet(
+            "light", advanced_style="paper_ui", contrast="high"
+        )
+        self.assertNotIn("#f4efe4", high_contrast_paper)
+        self.assertIn("background-color: #ffffff", high_contrast_paper)
+        with self.assertRaises(ValueError):
+            theme_stylesheet("dark", advanced_style="unsupported_style")
+
+    def test_advanced_style_selection_syncs_with_catalog_and_persists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            settings = QSettings(
+                str(Path(directory) / "settings.ini"), QSettings.Format.IniFormat
+            )
+            window = MacXplorer(settings=settings)
+            try:
+                application = QApplication.instance()
+                original_stylesheet = application.styleSheet()
+                dialog = SettingsDialog(settings, window)
+                self.assertEqual(
+                    [
+                        (
+                            dialog.advanced_style_selector.itemText(index),
+                            dialog.advanced_style_selector.itemData(index),
+                        )
+                        for index in range(dialog.advanced_style_selector.count())
+                    ],
+                    list(ADVANCED_STYLE_OPTIONS),
+                )
+                soft_ui_row = next(
+                    index
+                    for index in range(dialog.advanced_theme_list.count())
+                    if dialog.advanced_theme_list.item(index).text() == "Soft UI"
+                )
+                dialog.advanced_theme_list.setCurrentRow(soft_ui_row)
+                self.assertEqual(
+                    dialog.advanced_style_selector.currentData(), "soft_ui"
+                )
+                self.assertIn("border-radius: 12px", dialog.theme_preview.styleSheet())
+                self.assertEqual(application.styleSheet(), original_stylesheet)
+
+                dialog.theme_selector.setCurrentIndex(
+                    dialog.theme_selector.findData("forest")
+                )
+                self.assertIn("background-color: #17211c", dialog.theme_preview.styleSheet())
+                self.assertEqual(
+                    dialog.advanced_theme_list.currentItem().text(), "Soft UI"
+                )
+
+                dialog._save_and_accept()
+                window.apply_settings()
+                self.assertEqual(settings.value("appearance/advancedStyle"), "soft_ui")
+                self.assertEqual(
+                    application.styleSheet(),
+                    theme_stylesheet("forest", advanced_style="soft_ui"),
+                )
+
+                dialog = SettingsDialog(settings, window)
+                self.assertEqual(dialog.advanced_style_selector.currentData(), "soft_ui")
+                self.assertEqual(
+                    dialog.advanced_theme_list.currentItem().text(), "Soft UI"
+                )
+                informational_row = next(
+                    index
+                    for index in range(dialog.advanced_theme_list.count())
+                    if dialog.advanced_theme_list.item(index).text() == "Glassmorphism"
+                )
+                dialog.advanced_theme_list.setCurrentRow(informational_row)
+                self.assertEqual(
+                    dialog.advanced_style_selector.currentData(), "soft_ui"
+                )
+                self.assertIn("Informational only", dialog.theme_detail_status.text())
+                dialog.theme_search.setText("blur")
+                dialog.advanced_style_selector.setCurrentIndex(
+                    dialog.advanced_style_selector.findData("card_based")
+                )
+                self.assertEqual(dialog.theme_search.text(), "")
+                self.assertEqual(
+                    dialog.advanced_theme_list.currentItem().text(), "Card-Based UI"
+                )
+            finally:
+                window.close()
+
+    def test_unknown_saved_advanced_style_falls_back_to_standard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            settings = QSettings(
+                str(Path(directory) / "settings.ini"), QSettings.Format.IniFormat
+            )
+            settings.setValue("appearance/advancedStyle", "unsupported_style")
+            window = MacXplorer(settings=settings)
+            try:
+                self.assertEqual(
+                    QApplication.instance().styleSheet(),
+                    theme_stylesheet(system_theme_name(QApplication.instance())),
+                )
+                dialog = SettingsDialog(settings, window)
+                self.assertEqual(dialog.advanced_style_selector.currentData(), "standard")
+            finally:
+                window.close()
+
     def test_accessibility_appearance_options_persist_and_apply(self):
         with tempfile.TemporaryDirectory() as directory:
             settings = QSettings(
@@ -544,6 +706,9 @@ class PluginManagerSmokeTest(unittest.TestCase):
                 dialog.color_treatment_selector.setCurrentIndex(
                     dialog.color_treatment_selector.findData("colorblind")
                 )
+                dialog.advanced_style_selector.setCurrentIndex(
+                    dialog.advanced_style_selector.findData("neon")
+                )
                 preview_style = dialog.theme_preview.styleSheet()
                 self.assertIn("font-size: 18px", preview_style)
                 self.assertIn("padding: 2px", preview_style)
@@ -557,10 +722,12 @@ class PluginManagerSmokeTest(unittest.TestCase):
                 self.assertEqual(settings.value("appearance/density"), "compact")
                 self.assertEqual(settings.value("appearance/contrast"), "high")
                 self.assertEqual(settings.value("appearance/colorTreatment"), "colorblind")
+                self.assertEqual(settings.value("appearance/advancedStyle"), "neon")
                 self.assertEqual(
                     application.styleSheet(),
                     theme_stylesheet(
                         "light",
+                        advanced_style="neon",
                         text_size="extra_large",
                         density="compact",
                         contrast="high",

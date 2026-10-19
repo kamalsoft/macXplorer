@@ -69,6 +69,7 @@ class AdvancedThemeInfo(NamedTuple):
     category: str
     description: str
     implementation_note: str
+    style_id: str | None = None
 
 
 ADVANCED_THEME_CATALOG = (
@@ -109,6 +110,13 @@ ADVANCED_THEME_CATALOG = (
         "Informational only: dynamic holographic materials are not implemented.",
     ),
     AdvancedThemeInfo(
+        "Neon Accent",
+        "Color and light",
+        "Uses vivid accent colors against the selected preset without requiring glow effects.",
+        "Selectable accent treatment. Glow effects and animated lighting are not rendered.",
+        "neon",
+    ),
+    AdvancedThemeInfo(
         "Neon Glow",
         "Color and light",
         "Pairs dark surfaces with bright accents and luminous edge treatments.",
@@ -124,7 +132,8 @@ ADVANCED_THEME_CATALOG = (
         "Soft UI",
         "Surface treatments",
         "Uses gentle contrast and soft raised or recessed surface cues.",
-        "Catalog concept only: a Soft UI appearance preset is not currently available.",
+        "Available as a subtle rounded-surface treatment; drop shadows and raised 3D surfaces are not rendered.",
+        "soft_ui",
     ),
     AdvancedThemeInfo(
         "3D UI",
@@ -148,25 +157,29 @@ ADVANCED_THEME_CATALOG = (
         "Paper UI",
         "Surface treatments",
         "Suggests paper surfaces with restrained color, texture, and layered content.",
-        "Catalog concept only: paper textures and a dedicated Paper UI preset are not available.",
+        "Available as a matte, lightly warmed surface treatment; paper textures are not rendered.",
+        "paper_ui",
     ),
     AdvancedThemeInfo(
         "Outline UI",
         "Surface treatments",
         "Defines interface regions with clear outlines rather than filled surfaces.",
-        "Catalog concept only: an Outline UI preset is not currently available.",
+        "Available as an outlined-control treatment with stronger visible borders.",
+        "outline",
     ),
     AdvancedThemeInfo(
         "Borderless UI",
         "Surface treatments",
         "Reduces visible borders and relies on spacing and hierarchy to separate content.",
-        "Catalog concept only: a Borderless UI preset is not currently available.",
+        "Available as a low-border treatment that retains visible keyboard focus indicators.",
+        "borderless",
     ),
     AdvancedThemeInfo(
         "Card-Based UI",
         "Layout patterns",
         "Groups related content into distinct cards for scanning and organization.",
-        "Informational only: adopting this pattern requires a layout redesign, not just a color preset.",
+        "Available as spaced, rounded file rows; a full card-based layout redesign is not included.",
+        "card_based",
     ),
     AdvancedThemeInfo(
         "Bento Grid",
@@ -210,6 +223,14 @@ ADVANCED_THEME_CATALOG = (
         "Uses AI or generative rules to adapt layout, content, or styling to a user or task.",
         "Informational only: the app does not use AI to generate or adapt its interface.",
     ),
+)
+
+ADVANCED_STYLE_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("Standard", "standard"),
+) + tuple(
+    (theme.name, theme.style_id)
+    for theme in ADVANCED_THEME_CATALOG
+    if theme.style_id is not None
 )
 
 TEXT_SIZE_OPTIONS = (
@@ -361,6 +382,7 @@ def system_theme_name(application: QApplication) -> str:
 def theme_stylesheet(
     theme: str,
     *,
+    advanced_style: str = "standard",
     text_size: str = "standard",
     density: str = "comfortable",
     contrast: str = "standard",
@@ -369,6 +391,8 @@ def theme_stylesheet(
     """Build the application stylesheet for a preset and accessibility choices."""
     if theme not in THEME_COLORS:
         raise ValueError(f"Unknown application theme: {theme}")
+    if advanced_style not in {value for _, value in ADVANCED_STYLE_OPTIONS}:
+        raise ValueError(f"Unknown advanced UI style: {advanced_style}")
     if text_size not in {value for _, value in TEXT_SIZE_OPTIONS}:
         raise ValueError(f"Unknown text size: {text_size}")
     if density not in {value for _, value in DENSITY_OPTIONS}:
@@ -381,6 +405,15 @@ def theme_stylesheet(
     colors = dict(THEME_COLORS[theme])
     colors.setdefault("selection_text", "#ffffff")
     dark = QColor(colors["window"]).lightness() < 128
+    if advanced_style == "paper_ui":
+        colors["surface"] = "#f4efe4" if not dark else "#29271f"
+        colors["alternate"] = "#ebe5d8" if not dark else "#333025"
+        colors["header"] = "#e9e1d2" if not dark else "#332f24"
+        colors["input"] = "#fbf8f1" if not dark else "#29271f"
+    if advanced_style == "neon":
+        colors["accent"] = "#57f5d4" if dark else "#007e74"
+        colors["selection"] = "#16483f" if dark else "#c5eee7"
+        colors["selection_text"] = "#f4fffc" if dark else "#102d29"
     if contrast == "high":
         colors.update(
             {
@@ -417,6 +450,33 @@ def theme_stylesheet(
     control_padding = "3px 6px" if compact else "6px 10px"
     border_width = 2 if contrast == "high" else 1
     focus_width = 3 if contrast == "high" else 2
+    surface_radius = {
+        "soft_ui": 12,
+        "paper_ui": 3,
+        "outline": 3,
+        "borderless": 0,
+        "card_based": 12,
+    }.get(advanced_style, 8)
+    control_radius = {
+        "soft_ui": 12,
+        "paper_ui": 3,
+        "outline": 3,
+        "borderless": 5,
+        "card_based": 8,
+    }.get(advanced_style, 7)
+    surface_border = (
+        "none"
+        if advanced_style == "borderless" and contrast != "high"
+        else f"{border_width}px solid {colors['border']}"
+    )
+    control_background = (
+        colors["window"] if advanced_style == "outline" else colors["input"]
+    )
+    button_background = (
+        colors["surface"] if advanced_style == "outline" else colors["button"]
+    )
+    item_margin = "2px 4px" if advanced_style == "card_based" else "0px"
+    item_padding = 4 if advanced_style == "card_based" else item_padding
     return f"""
 QMainWindow, QWidget {{
     background-color: {colors["window"]};
@@ -447,8 +507,8 @@ QLabel#brandAttribution {{
 
 QTreeView, QListWidget, QTableWidget {{
     background-color: {colors["surface"]};
-    border: {border_width}px solid {colors["border"]};
-    border-radius: 8px;
+    border: {surface_border};
+    border-radius: {surface_radius}px;
     color: {colors["secondary_text"]};
     gridline-color: {colors["border"]};
     show-decoration-selected: 1;
@@ -457,6 +517,8 @@ QTreeView, QListWidget, QTableWidget {{
 
 QTreeView::item, QListWidget::item, QTableWidget::item {{
     padding: {item_padding}px;
+    margin: {item_margin};
+    border-radius: {5 if advanced_style == "card_based" else 0}px;
 }}
 QTreeView::item:hover, QListWidget::item:hover, QTableWidget::item:hover {{
     background-color: {colors["hover"]};
@@ -464,7 +526,7 @@ QTreeView::item:hover, QListWidget::item:hover, QTableWidget::item:hover {{
 QTreeView::item:selected, QListWidget::item:selected, QTableWidget::item:selected {{
     background-color: {colors["selection"]};
     color: {colors["selection_text"]};
-    border: {focus_width}px solid {colors["accent"] if color_treatment == "colorblind" or contrast == "high" else colors["selection"]};
+    border: {focus_width}px solid {colors["accent"] if color_treatment == "colorblind" or contrast == "high" or advanced_style == "neon" else colors["selection"]};
 }}
 
 QHeaderView::section {{
@@ -478,9 +540,9 @@ QHeaderView::section {{
 }}
 
 QLineEdit, QComboBox {{
-    background-color: {colors["input"]};
+    background-color: {control_background};
     border: {border_width}px solid {colors["border"]};
-    border-radius: 7px;
+    border-radius: {control_radius}px;
     padding: {control_padding};
     color: {colors["text"]};
     selection-background-color: {colors["selection"]};
@@ -503,9 +565,9 @@ QToolBar {{
     padding: {control_padding};
 }}
 QToolButton {{
-    background-color: {colors["button"]};
+    background-color: {button_background};
     border: {border_width}px solid {colors["button_border"]};
-    border-radius: 7px;
+    border-radius: {control_radius}px;
     padding: {control_padding};
     color: {colors["button_text"]};
 }}
@@ -551,9 +613,9 @@ QTabBar::tab:selected {{
     color: {colors["text"]};
 }}
 QPushButton {{
-    background-color: {colors["button"]};
+    background-color: {button_background};
     border: {border_width}px solid {colors["button_border"]};
-    border-radius: 7px;
+    border-radius: {control_radius}px;
     padding: {control_padding};
     color: {colors["button_text"]};
 }}

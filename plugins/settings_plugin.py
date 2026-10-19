@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QFileDialog,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -28,6 +29,7 @@ from PyQt6.QtWidgets import (
 )
 
 from core.theme import (
+    ADVANCED_STYLE_OPTIONS,
     ADVANCED_THEME_CATALOG,
     COLOR_TREATMENT_OPTIONS,
     CONTRAST_OPTIONS,
@@ -155,11 +157,20 @@ class SettingsDialog(QDialog):
         themes_scroll.setWidgetResizable(True)
         themes_content = QWidget(themes_scroll)
         self.themes_content_layout = QVBoxLayout(themes_content)
-        preset_form = QFormLayout()
-        self.themes_content_layout.addLayout(preset_form)
+        self.themes_sections_layout = QGridLayout()
+        self.themes_sections_layout.setHorizontalSpacing(12)
+        self.themes_sections_layout.setVerticalSpacing(10)
+        self.themes_sections_layout.setColumnStretch(0, 1)
+        self.themes_sections_layout.setColumnStretch(1, 1)
+        self.themes_content_layout.addLayout(self.themes_sections_layout)
         themes_scroll.setWidget(themes_content)
         themes_layout.addWidget(themes_scroll)
         self.settings_tabs.addTab(themes_page, "Themes")
+
+        appearance_group = QGroupBox("Appearance", themes_content)
+        appearance_group.setObjectName("appearanceGroup")
+        preset_form = QFormLayout(appearance_group)
+        self.themes_sections_layout.addWidget(appearance_group, 0, 0)
 
         self.theme_selector = QComboBox(self)
         for label, theme_id in THEME_OPTIONS:
@@ -168,13 +179,20 @@ class SettingsDialog(QDialog):
         theme_index = self.theme_selector.findData(selected_theme)
         self.theme_selector.setCurrentIndex(theme_index if theme_index >= 0 else 0)
         preset_form.addRow("Active appearance preset:", self.theme_selector)
+        self.advanced_style_selector = self._add_choice(
+            preset_form,
+            "Advanced style:",
+            ADVANCED_STYLE_OPTIONS,
+            str(settings.value("appearance/advancedStyle", "standard")).lower(),
+        )
 
         catalog_group = QGroupBox("Advanced UI theme catalog", themes_content)
+        catalog_group.setObjectName("advancedThemeCatalog")
         catalog_layout = QVBoxLayout(catalog_group)
         catalog_layout.addWidget(
             QLabel(
-                "Browse design directions and their implementation status. "
-                "Catalog entries are informational and do not change the active preset.",
+                "Choose a supported style to sync it with the selector and preview. "
+                "Other entries are informational.",
                 catalog_group,
             )
         )
@@ -185,8 +203,8 @@ class SettingsDialog(QDialog):
 
         catalog_content = QHBoxLayout()
         self.advanced_theme_list = QListWidget(catalog_group)
-        self.advanced_theme_list.setMinimumWidth(220)
-        self.advanced_theme_list.setMaximumHeight(250)
+        self.advanced_theme_list.setMinimumWidth(145)
+        self.advanced_theme_list.setMaximumHeight(170)
         self.theme_details = QWidget(catalog_group)
         details_layout = QVBoxLayout(self.theme_details)
         details_layout.setContentsMargins(8, 4, 8, 4)
@@ -211,7 +229,7 @@ class SettingsDialog(QDialog):
         catalog_content.addWidget(self.advanced_theme_list, 1)
         catalog_content.addWidget(self.theme_details, 2)
         catalog_layout.addLayout(catalog_content)
-        self.themes_content_layout.addWidget(catalog_group)
+        self.themes_sections_layout.addWidget(catalog_group, 1, 0)
         for theme_info in ADVANCED_THEME_CATALOG:
             self.advanced_theme_list.addItem(theme_info.name)
             self.advanced_theme_list.item(
@@ -221,10 +239,15 @@ class SettingsDialog(QDialog):
         self.advanced_theme_list.currentItemChanged.connect(
             self._show_advanced_theme_details
         )
-        self.advanced_theme_list.setCurrentRow(0)
+        self.advanced_style_selector.currentIndexChanged.connect(
+            self._sync_advanced_theme_list
+        )
+        self._sync_advanced_theme_list()
 
-        accessibility_form = QFormLayout()
-        self.themes_content_layout.addLayout(accessibility_form)
+        accessibility_group = QGroupBox("Accessibility", themes_content)
+        accessibility_group.setObjectName("accessibilityGroup")
+        accessibility_form = QFormLayout(accessibility_group)
+        self.themes_sections_layout.addWidget(accessibility_group, 0, 1)
 
         self.text_size_selector = self._add_choice(
             accessibility_form,
@@ -276,16 +299,19 @@ class SettingsDialog(QDialog):
         preview_content.addLayout(preview_controls, 2)
         preview_layout.addLayout(preview_content)
 
-        appearance_group = QGroupBox("Appearance preview", self)
-        appearance_layout = QVBoxLayout(appearance_group)
-        appearance_layout.addWidget(self.theme_preview)
-        appearance_layout.addWidget(
-            QLabel("This preview does not change the app until you save.", appearance_group)
+        preview_group = QGroupBox("Live preview", themes_content)
+        preview_group.setObjectName("appearancePreview")
+        preview_layout = QVBoxLayout(preview_group)
+        preview_layout.addWidget(self.theme_preview)
+        preview_layout.addWidget(
+            QLabel("Changes apply to macXplorer after you save.", preview_group)
         )
-        self.themes_content_layout.addWidget(appearance_group)
-        self.themes_content_layout.addStretch()
+        self.themes_sections_layout.addWidget(preview_group, 1, 1)
 
         self.theme_selector.currentIndexChanged.connect(self._update_theme_preview)
+        self.advanced_style_selector.currentIndexChanged.connect(
+            self._update_theme_preview
+        )
         self.text_size_selector.currentIndexChanged.connect(self._update_theme_preview)
         self.density_selector.currentIndexChanged.connect(self._update_theme_preview)
         self.contrast_selector.currentIndexChanged.connect(self._update_theme_preview)
@@ -358,10 +384,33 @@ class SettingsDialog(QDialog):
         self.theme_detail_name.setText(theme_info.name)
         self.theme_detail_category.setText(f"Category: {theme_info.category}")
         self.theme_detail_status.setText(
-            "Informational only - this catalog entry is not an active preset."
+            "Selectable style. Combines with the selected appearance preset."
+            if theme_info.style_id is not None
+            else "Informational only. This concept is not an active style."
         )
         self.theme_detail_description.setText(theme_info.description)
         self.theme_detail_note.setText(theme_info.implementation_note)
+        if theme_info.style_id is not None:
+            index = self.advanced_style_selector.findData(theme_info.style_id)
+            if index >= 0:
+                self.advanced_style_selector.setCurrentIndex(index)
+
+    def _sync_advanced_theme_list(self, _index: int = 0) -> None:
+        style_id = self.advanced_style_selector.currentData()
+        row = next(
+            (
+                index
+                for index in range(self.advanced_theme_list.count())
+                if self.advanced_theme_list.item(index)
+                .data(Qt.ItemDataRole.UserRole)
+                .style_id
+                == style_id
+            ),
+            -1,
+        )
+        if row >= 0 and self.advanced_theme_list.item(row).isHidden():
+            self.theme_search.clear()
+        self.advanced_theme_list.setCurrentRow(row)
 
     def _bool_value(self, key: str, default: bool) -> bool:
         value = self.settings.value(key, default)
@@ -396,6 +445,7 @@ class SettingsDialog(QDialog):
         self.theme_preview.setStyleSheet(
             theme_stylesheet(
                 str(theme),
+                advanced_style=str(self.advanced_style_selector.currentData()),
                 text_size=str(self.text_size_selector.currentData()),
                 density=str(self.density_selector.currentData()),
                 contrast=str(self.contrast_selector.currentData()),
@@ -453,6 +503,7 @@ class SettingsDialog(QDialog):
             "files/confirmDelete": self.confirm_delete.isChecked(),
             "view/showPreview": self.show_preview.isChecked(),
             "appearance/theme": self.theme_selector.currentData(),
+            "appearance/advancedStyle": self.advanced_style_selector.currentData(),
             "appearance/textSize": self.text_size_selector.currentData(),
             "appearance/density": self.density_selector.currentData(),
             "appearance/contrast": self.contrast_selector.currentData(),
