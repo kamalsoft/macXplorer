@@ -6,5 +6,6 @@ BUILTIN_PLUGIN_MODULES = (
     "plugins.diff_plugin",
     "plugins.preview_plugin",
     "plugins.settings_plugin",
+    "plugins.terminal_plugin",
     "plugins.workspace_plugin",
 )

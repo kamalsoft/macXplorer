@@ -23,11 +23,12 @@ The macOS app and windows use a custom macXplorer icon and an About panel that i
 - Tabbed workspaces, each with two independently navigable file panes.
 - Details, list, and icon views; sorting; multi-selection; drag and drop.
 - Address-bar navigation, back and forward history, and filtering across open tabs.
-- File creation, rename, copy, cut, paste, open, Finder reveal, item information, and move to Trash.
+- File creation, rename, copy, cut, background paste with progress and cancellation, open, Finder reveal, item information, and move to Trash.
 - ZIP archive creation and extraction with path traversal checks.
 - Local favorites, recent files, common macOS folders, and mounted volumes.
 - Text, image, and file metadata previews.
 - Folder and text-file comparison through the Diff plugin.
+- Open macOS Terminal in the active pane's current folder.
 - Persistent preferences for macOS-oriented system, light, dark, ocean, forest, graphite, warm night, and terminal appearances, plus high contrast, text size, density, and color treatment. Settings has separate General and Themes tabs, including a searchable catalog of advanced UI design concepts.
 
 The app works with local and mounted paths exposed through macOS. It does not currently provide cloud-provider integrations, Windows shell features, or a full content-indexed search service. The search field filters the file model in open workspaces.

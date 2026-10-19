@@ -39,6 +39,7 @@ Both pane views support extended selection. Drag-and-drop is enabled by the Qt i
 | Copy, cut, paste, select all | Edit menu or file context menu |
 | Open selected file or folder | Tools menu or file context menu |
 | Reveal an item in Finder | Tools menu or file context menu |
+| Open macOS Terminal in the active folder | Tools menu |
 | View item information | Tools menu or file context menu |
 | Move selected items to Trash | File menu, Edit menu, or context menu |
 | Create ZIP archive | Tools menu |
@@ -46,7 +47,7 @@ Both pane views support extended selection. Drag-and-drop is enabled by the Qt i
 
 Delete confirmation is enabled by default. The Trash action uses macOS Finder through `osascript`. It does not perform permanent deletion. Errors are reported to the user.
 
-Copy and cut support multiple selected items. If a destination already contains an item with the same name, macXplorer asks whether to replace, skip, or cancel. Copying a folder into itself or one of its descendants is rejected.
+Copy and cut support multiple selected items. Paste runs in the background and shows a progress dialog; only one paste batch runs at a time. Cancel stops between items and during chunked file copies. The dialog remains open while an in-progress move finishes, then reports the final transfer status. If a destination already contains an item with the same name, macXplorer asks whether to replace, skip, or cancel before starting the transfer. Copying a folder into itself or one of its descendants is rejected.
 
 ZIP extraction rejects entries with absolute paths or parent-directory traversal and extracts to a temporary staging directory before publishing the result. Archive creation avoids including the output archive within a selected source directory.
 
@@ -102,3 +103,5 @@ Qt maps the `Ctrl` shortcut modifier to the Command key on macOS. The Workspace 
 - Preview supports a defined set of image and text extensions. Text files larger than 100 KiB are not previewed as text.
 - Recent files are added when opening a file through macXplorer succeeds. The list is local application history.
 - The app does not currently implement cloud synchronization, Windows-specific shell extensions, a recycle-bin browser, operation undo, or a full archive manager.
+
+**Open Terminal Here** launches macOS Terminal in the active pane's current directory. The first use may prompt macOS to allow macXplorer to control Terminal. The action is available only on macOS.

@@ -9,17 +9,22 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 from pathlib import PurePosixPath
+from typing import Callable
 
 from PyQt6.QtCore import QMimeData, QSettings, QUrl, Qt, pyqtSignal
-from PyQt6.QtGui import QAction, QDesktopServices, QFont, QKeySequence
+from PyQt6.QtGui import QAction, QCloseEvent, QDesktopServices, QFont, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
+    QDialog,
     QFileDialog,
     QInputDialog,
+    QLabel,
     QLineEdit,
     QMainWindow,
     QMenu,
     QMessageBox,
+    QProgressBar,
+    QPushButton,
     QSplitter,
     QTabWidget,
     QToolBar,
@@ -28,6 +33,7 @@ from PyQt6.QtWidgets import (
 )
 
 from core.branding import AboutDialog, app_icon
+from core.file_operations import FileTransferThread, TransferResult, TransferTask
 from core.plugin_manager import PluginManager
 from core.theme import (
     ADVANCED_STYLE_OPTIONS,
@@ -42,6 +48,49 @@ from core.theme import (
 from core.widgets import FilePane, WorkspaceTab
 
 LOGGER = logging.getLogger(__name__)
+
+
+class FileTransferDialog(QDialog):
+    def __init__(
+        self,
+        task_count: int,
+        cancel_callback: Callable[[], None],
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("File Transfer")
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self._cancel_requested = False
+        self.label = QLabel("Preparing file transfer…", self)
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setRange(0, task_count)
+        self.cancel_button = QPushButton("Cancel", self)
+        self.cancel_button.clicked.connect(cancel_callback)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.label)
+        layout.addWidget(self.progress_bar)
+        layout.addWidget(self.cancel_button)
+
+    def set_progress(
+        self,
+        completed: int,
+        total: int,
+        source_path: str,
+        copied_bytes: int,
+    ) -> None:
+        if self._cancel_requested:
+            return
+        self.progress_bar.setValue(completed)
+        label = f"Transferring {Path(source_path).name} ({completed} of {total} items)"
+        if copied_bytes:
+            label += f"\nCopied {copied_bytes:,} bytes"
+        self.label.setText(label)
+
+    def set_cancel_requested(self) -> None:
+        self._cancel_requested = True
+        self.cancel_button.setEnabled(False)
+        self.label.setText("Cancellation requested. Waiting for the current operation…")
 
 
 class MacXplorer(QMainWindow):
@@ -74,6 +123,9 @@ class MacXplorer(QMainWindow):
         self.clipboard_path: Path | None = None  # Compatibility for existing plugins.
         self.search_text = ""
         self._active_pane: FilePane | None = None
+        self._transfer_thread: FileTransferThread | None = None
+        self._transfer_dialog: FileTransferDialog | None = None
+        self._transfer_context: tuple[list[Path], Path] | None = None
         self._build_ui()
         self._create_menus()
         self.plugin_manager = PluginManager(self, self.toolbar, self.menus)
@@ -612,6 +664,10 @@ class MacXplorer(QMainWindow):
         self.statusBar().showMessage(f"{operation.title()} {len(paths)} item(s)")
 
     def paste_item(self) -> None:
+        if self._transfer_thread is not None:
+            self.statusBar().showMessage("A file transfer is already in progress.")
+            return
+
         sources = list(self.clipboard_paths)
         if not sources:
             mime_data = QApplication.clipboard().mimeData()
@@ -625,15 +681,19 @@ class MacXplorer(QMainWindow):
             path for path in sources if path.exists() or path.is_symlink()
         ]
         cut_sources = (
-            list(self.clipboard_paths)
+            [
+                path
+                for path in self.clipboard_paths
+                if path.exists() or path.is_symlink()
+            ]
             if self.clipboard_operation == "cut"
             else []
         )
-        remaining_cut: list[Path] = []
         if not sources:
             QMessageBox.warning(self, "Clipboard", "Nothing to paste.")
             return
         target_dir = self.active_pane().selected_directory()
+        tasks: list[TransferTask] = []
         try:
             for source in sources:
                 destination = target_dir / source.name
@@ -642,6 +702,7 @@ class MacXplorer(QMainWindow):
                     and target_dir.resolve().is_relative_to(source.resolve())
                 ):
                     raise ValueError("A folder cannot be copied into itself or its descendants.")
+                replace_existing = False
                 if destination.exists() or destination.is_symlink():
                     answer = QMessageBox.warning(
                         self,
@@ -655,41 +716,147 @@ class MacXplorer(QMainWindow):
                     if answer == QMessageBox.StandardButton.Cancel:
                         return
                     if answer == QMessageBox.StandardButton.No:
-                        if self.clipboard_operation == "cut":
-                            remaining_cut.append(source)
                         continue
-                    self._remove_path(destination)
-                if self.clipboard_operation == "cut":
-                    shutil.move(str(source), str(destination))
-                elif source.is_dir() and not source.is_symlink():
-                    shutil.copytree(source, destination)
-                else:
-                    shutil.copy2(source, destination, follow_symlinks=False)
-            if self.clipboard_operation == "cut":
-                mime_data = QApplication.clipboard().mimeData()
-                original_urls = [
-                    url.toLocalFile()
-                    for url in (mime_data.urls() if mime_data is not None else [])
-                    if url.isLocalFile()
-                ]
-                if original_urls == [str(path) for path in cut_sources]:
-                    if remaining_cut:
-                        mime_data = QMimeData()
-                        mime_data.setUrls(
-                            [
-                                QUrl.fromLocalFile(str(path))
-                                for path in remaining_cut
-                            ]
-                        )
-                        QApplication.clipboard().setMimeData(mime_data)
-                    else:
-                        QApplication.clipboard().clear()
-                self.clipboard_paths = remaining_cut
-                self.clipboard_path = remaining_cut[0] if remaining_cut else None
-            self.statusBar().showMessage(f"Pasted to {target_dir}")
+                    replace_existing = True
+                operation = "move" if self.clipboard_operation == "cut" else "copy"
+                tasks.append(
+                    TransferTask(
+                        source,
+                        destination,
+                        operation,
+                        replace_existing,
+                    )
+                )
         except (OSError, ValueError) as error:
             LOGGER.exception("Failed to paste items into %s", target_dir)
             QMessageBox.critical(self, "Paste Error", f"Failed to paste: {error}")
+            return
+
+        if not tasks:
+            self.statusBar().showMessage(f"No items pasted to {target_dir}")
+            return
+
+        thread = FileTransferThread(tasks, self)
+        dialog = FileTransferDialog(
+            len(tasks),
+            self._cancel_paste,
+            self,
+        )
+        thread.progress.connect(self._update_transfer_progress)
+        thread.finished.connect(self._on_transfer_finished)
+        self._transfer_thread = thread
+        self._transfer_dialog = dialog
+        self._transfer_context = (cut_sources, target_dir)
+        dialog.show()
+        thread.start()
+
+    def _cancel_paste(self) -> None:
+        if self._transfer_thread is not None:
+            self._transfer_thread.cancel()
+        if self._transfer_dialog is not None:
+            self._transfer_dialog.set_cancel_requested()
+
+    def _update_transfer_progress(
+        self,
+        thread: FileTransferThread,
+        completed: int,
+        total: int,
+        source_path: str,
+        copied_bytes: int,
+    ) -> None:
+        if self._transfer_thread is not thread:
+            return
+        if self._transfer_dialog is not None:
+            self._transfer_dialog.set_progress(
+                completed,
+                total,
+                source_path,
+                copied_bytes,
+            )
+
+    def _on_transfer_finished(self) -> None:
+        thread = self._transfer_thread
+        context = self._transfer_context
+        if thread is None or context is None:
+            return
+        if thread.result is None:
+            return
+        self._finish_paste(thread, thread.result, context[0], context[1])
+
+    def _finish_paste(
+        self,
+        thread: FileTransferThread,
+        result: TransferResult,
+        cut_sources: list[Path],
+        target_dir: Path,
+        *,
+        show_errors: bool = True,
+    ) -> None:
+        dialog = self._transfer_dialog
+        self._transfer_thread = None
+        self._transfer_dialog = None
+        self._transfer_context = None
+        if dialog is not None:
+            dialog.close()
+            dialog.deleteLater()
+        thread.deleteLater()
+
+        if cut_sources and self.clipboard_operation == "cut" and self.clipboard_paths == cut_sources:
+            completed_sources = {task.source for task in result.completed}
+            remaining_cut = [
+                source for source in cut_sources if source not in completed_sources
+            ]
+            self.clipboard_paths = remaining_cut
+            self.clipboard_path = remaining_cut[0] if remaining_cut else None
+            mime_data = QApplication.clipboard().mimeData()
+            original_urls = [
+                url.toLocalFile()
+                for url in (mime_data.urls() if mime_data is not None else [])
+                if url.isLocalFile()
+            ]
+            if original_urls == [str(path) for path in cut_sources]:
+                if remaining_cut:
+                    updated_mime_data = QMimeData()
+                    updated_mime_data.setUrls(
+                        [QUrl.fromLocalFile(str(path)) for path in remaining_cut]
+                    )
+                    QApplication.clipboard().setMimeData(updated_mime_data)
+                else:
+                    QApplication.clipboard().clear()
+
+        if result.error is not None:
+            LOGGER.error("File transfer to %s failed: %s", target_dir, result.error)
+            if show_errors:
+                QMessageBox.critical(
+                    self,
+                    "Paste Error",
+                    f"File transfer stopped after {len(result.completed)} item(s):\n"
+                    f"{result.error}",
+                )
+        if result.cancelled:
+            self.statusBar().showMessage(
+                f"Transfer cancelled after {len(result.completed)} item(s)"
+            )
+        elif result.error is None:
+            self.statusBar().showMessage(f"Pasted to {target_dir}")
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        thread = self._transfer_thread
+        context = self._transfer_context
+        if thread is not None:
+            if thread.isRunning():
+                thread.cancel()
+                thread.wait()
+            if context is not None and thread.result is not None:
+                thread.finished.disconnect()
+                self._finish_paste(
+                    thread,
+                    thread.result,
+                    context[0],
+                    context[1],
+                    show_errors=False,
+                )
+        super().closeEvent(event)
 
     @staticmethod
     def _remove_path(path: Path) -> None:

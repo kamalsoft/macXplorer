@@ -23,6 +23,7 @@ python macXplorer.py
 macXplorer.py          QApplication startup and event-loop entry
 core/
   main_window.py       Main window, shared state, file operations, settings
+  file_operations.py  Background copy and move worker with progress/cancel
   widgets.py           FilePane, WorkspaceTab, Qt models and views
   plugin_manager.py    Plugin discovery, validation, and action registration
   theme.py             Theme presets and stylesheet composition
@@ -32,7 +33,8 @@ plugins/
   diff_plugin.py        Folder and file comparison
   preview_plugin.py     Text, image, and metadata preview
   settings_plugin.py    Settings dialog and persistence
-  workspace_plugin.py   Dual-pane and workspace actions
+  terminal_plugin.py   Open Terminal in the active folder
+  workspace_plugin.py  Dual-pane and workspace actions
   __init__.py           Built-in plugin list for packaged builds
 tests/
   test_plugin_manager.py  Qt integration and behavior tests
@@ -55,6 +57,8 @@ See [Architecture and Technical Reference](architecture.md) for the verified sta
 7. Run the full test suite.
 
 Keep plugins focused. Core-level state and shared file operations belong in the core; feature-specific interfaces and logic belong in plugins.
+
+`TerminalPlugin` is a macOS-specific example. It registers its action in the Tools menu and invokes AppleScript with the active path passed as an argument. Keep command text fixed and quote path arguments for the shell command executed by Terminal.
 
 ## Project skills for coding assistants
 

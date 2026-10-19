@@ -8,6 +8,7 @@ The tree below lists source, assets, tests, and documentation that define or ver
 | --- | --- |
 | `macXplorer.py` | `main()`, `QApplication` creation, process identity, and event-loop entry. |
 | `core/main_window.py` | `MacXplorer`, shared window state, menus, tabs, navigation, file operations, clipboard, and settings application. |
+| `core/file_operations.py` | Background copy and move worker, transfer progress, staging, and cancellation. |
 | `core/widgets.py` | `FilePane`, `WorkspaceTab`, Qt filesystem models/views, path history, selection, and focus signals. |
 | `core/plugin_manager.py` | Plugin discovery, validation, initialization, and toolbar/menu registration. |
 | `core/theme.py` | Preset palettes, advanced-style metadata, accessibility options, and QSS generation. |
@@ -18,6 +19,7 @@ The tree below lists source, assets, tests, and documentation that define or ver
 | `plugins/diff_plugin.py` | Folder comparison and text file diff dialogs. |
 | `plugins/preview_plugin.py` | Preview plugin and text, image, and metadata preview widget. |
 | `plugins/settings_plugin.py` | Settings action, General and Themes UI, validation, preview, and persistence. |
+| `plugins/terminal_plugin.py` | Opens macOS Terminal in the active pane's current directory. |
 | `plugins/workspace_plugin.py` | Dual-pane toggle and navigation actions/shortcuts. |
 | `tests/test_plugin_manager.py` | Qt integration and behavior tests across core and plugins. |
 | `tests/__init__.py` | Test package marker. |
@@ -53,10 +55,12 @@ flowchart TD
     PluginManager -->|imports| Diff["plugins/diff_plugin.py"]
     PluginManager -->|imports| Preview["plugins/preview_plugin.py"]
     PluginManager -->|imports| Settings["plugins/settings_plugin.py"]
+    PluginManager -->|imports| Terminal["plugins/terminal_plugin.py"]
     PluginManager -->|imports| Workspace["plugins/workspace_plugin.py"]
     Diff -->|implements| Contract
     Preview -->|implements| Contract
     Settings -->|implements| Contract
+    Terminal -->|implements| Contract
     Workspace -->|implements| Contract
     Tests["tests/test_plugin_manager.py"] -->|exercises| Core
     Tests -->|exercises| Diff
@@ -72,6 +76,8 @@ flowchart TD
 `MacXplorer.__init__()` configures app identity and preferences, applies the initial theme, and connects the system color-scheme notification when available. It calls `_build_ui()` to create the central splitter, tab widget, search field, toolbar, and first workspace. It then calls `_create_menus()`, constructs `PluginManager`, and calls `_load_plugins()`.
 
 `PluginManager.load_plugins()` obtains module names from `pkgutil.iter_modules()` and `BUILTIN_PLUGIN_MODULES`, imports each module, identifies concrete `BasePlugin` subclasses defined by that module, validates metadata and unique IDs, invokes `initialize(core_app)`, and registers returned actions. Failures are logged and collected; `_load_plugins()` displays a warning if any occurred. Dynamic plugin imports execute Python module code in the application's process; the plugin manager does not sandbox plugins.
+
+`TerminalPlugin` registers **Tools > Open Terminal Here**. On macOS it invokes `/usr/bin/osascript` with a fixed AppleScript and supplies the resolved active-pane folder as an argument. The script asks Terminal to execute a `cd` command with AppleScript's shell quoting for that path. A missing folder, unsupported operating system, or process failure is reported to the user. macOS may require the user to grant Automation access for macXplorer to control Terminal.
 
 ```mermaid
 sequenceDiagram
@@ -150,6 +156,7 @@ The standard Qt event loop dispatches these events and signal-slot callbacks. Ke
 | --- | --- |
 | Copy/cut/paste | `copy_item()` or `cut_item()` calls `_set_clipboard()`, which stores the internal paths and operation and publishes local-file URLs through `QClipboard`/`QMimeData`. `paste_item()` reads that internal state (or local-file URLs from the system clipboard), checks the destination and overwrite choice, then uses `shutil` to copy or move. |
 | Preview | `FilePane` focus/selection changes reach `MacXplorer.fileSelected`. `PreviewPlugin.initialize()` connects the signal to `update_preview()`. `view/showPreview` controls visibility through `PreviewPlugin.set_visible()`. |
+| Terminal | The Terminal plugin action reads `core.active_pane().path_bar.text()` and invokes Terminal at that directory through `/usr/bin/osascript`. |
 | Preferences | `SettingsPlugin` opens `SettingsDialog`; `_save_and_accept()` validates paths, writes `QSettings`, calls `sync()`, and checks its status. The plugin then asks the core to apply settings. `MacXplorer.apply_settings()` updates pane options, preview visibility, and the stylesheet. |
 | Appearance | `theme_stylesheet()` in `core/theme.py` combines the saved color preset, supported advanced style, text size, density, contrast, and color treatment. System mode uses Qt's reported color scheme, and a Qt color-scheme notification causes the core to refresh the stylesheet. |
 
@@ -205,7 +212,7 @@ The settings dialog separates general preferences and appearance controls into G
 
 macXplorer keeps an internal list of clipboard paths and whether the operation is copy or cut. It also publishes selected paths as local-file URLs through `QClipboard`/`QMimeData`, allowing compatible desktop applications to exchange files. If the internal list is empty, paste attempts to read local URLs from the native clipboard.
 
-Copy uses `shutil.copy2` for files and `shutil.copytree` for directories. Cut uses `shutil.move`. Existing destinations require an explicit replace, skip, or cancel decision. Self-descendant copies are rejected. Folder creation, file creation, and rename validate that the requested name is a single path component.
+`paste_item()` validates the destinations and resolves replace, skip, or cancel conflicts on the GUI thread, then starts `FileTransferThread` from `core/file_operations.py`. The worker copies regular files in 1 MiB chunks, stages copies in a temporary directory beside the destination, and publishes a completed copy by moving it into place. Directory copies use `shutil.copytree` with the same chunk-aware file copier. Moves use `shutil.move`. The progress dialog reports completed top-level items and the current copied byte count. Cancellation is checked between tasks and copy chunks; an in-progress move is not interruptible, so the dialog stays open with a cancellation-pending status until the move finishes. Cancelled or failed staged copies are removed. Completed cut items are removed from the internal clipboard while skipped and unfinished sources remain. Folder creation, file creation, and rename validate that the requested name is a single path component.
 
 Moving to Trash is implemented through Finder AppleScript using `/usr/bin/osascript`. Permanent recursive deletion is an internal helper used only to replace an existing destination during paste; it is not the user-facing delete action.
 
@@ -255,6 +262,7 @@ Follow the runtime path first, then trace the features through signals and plugi
 5. **Tabs and active pane:** `core/main_window.py` — `new_tab()`, `close_tab()`, `_on_workspace_changed()`, `_set_active_pane()`.
 6. **Clipboard and file operations:** `core/main_window.py` — `_set_clipboard()`, `paste_item()`, `_move_to_trash()`, `_create_zip()`, `_extract_zip_to()`.
 7. **Plugin feature flows:** `plugins/preview_plugin.py` — `initialize()`, `update_preview()`, `set_visible()`; `plugins/diff_plugin.py`; `plugins/workspace_plugin.py`.
-8. **Settings and appearance:** `plugins/settings_plugin.py` — `SettingsDialog._save_and_accept()`; `core/main_window.py` — `apply_settings()`; `core/theme.py` — `theme_stylesheet()`.
-9. **Behavioral verification:** `tests/test_plugin_manager.py` — begin with startup/registration, workspace, clipboard/ZIP, preview/diff, and settings/theme tests.
-10. **Distribution boundary:** `macXplorer.spec`, `core/branding.py`, `docs/development.md`, and `docs/license-policy.md`.
+8. **Terminal integration:** `plugins/terminal_plugin.py` — `TerminalPlugin.open_terminal_here()`; review the fixed AppleScript and argument passing.
+9. **Settings and appearance:** `plugins/settings_plugin.py` — `SettingsDialog._save_and_accept()`; `core/main_window.py` — `apply_settings()`; `core/theme.py` — `theme_stylesheet()`.
+10. **Behavioral verification:** `tests/test_plugin_manager.py` — begin with startup/registration, Terminal, workspace, clipboard/ZIP, preview/diff, and settings/theme tests.
+11. **Distribution boundary:** `macXplorer.spec`, `core/branding.py`, `docs/development.md`, and `docs/license-policy.md`.

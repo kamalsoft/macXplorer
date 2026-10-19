@@ -1,5 +1,7 @@
 import os
+import subprocess
 import tempfile
+import time
 import unittest
 import zipfile
 from pathlib import Path
@@ -10,10 +12,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtCore import QDir, QMimeData, QSettings, QUrl, Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication, QLabel, QScrollArea
+from PyQt6.QtWidgets import QApplication, QLabel, QMessageBox, QScrollArea
 
 from core.branding import AboutDialog, app_asset_path
-from core.main_window import MacXplorer
+from core.file_operations import FileTransferThread, TransferTask
+from core.main_window import FileTransferDialog, MacXplorer
 from core.theme import (
     ADVANCED_STYLE_OPTIONS,
     ADVANCED_THEME_CATALOG,
@@ -41,13 +44,17 @@ class PluginManagerSmokeTest(unittest.TestCase):
             self.assertFalse(window.windowIcon().isNull())
             self.assertEqual(
                 set(window.plugin_manager.plugins),
-                {"diff", "preview", "settings", "workspace"},
+                {"diff", "preview", "settings", "terminal", "workspace"},
             )
             self.assertEqual(window.splitter.count(), 2)
             self.assertEqual(window.workspaces.count(), 1)
             self.assertEqual(window.current_workspace.splitter.count(), 2)
             self.assertIn(
                 "Compare Folders",
+                [action.text() for action in window.menus["Tools"].actions()],
+            )
+            self.assertIn(
+                "Open Terminal Here",
                 [action.text() for action in window.menus["Tools"].actions()],
             )
             menu_titles = [action.text() for action in window.menuBar().actions()]
@@ -66,6 +73,42 @@ class PluginManagerSmokeTest(unittest.TestCase):
                 window.about_action.menuRole(), QAction.MenuRole.AboutRole
             )
             self.assertFalse(window.plugin_manager.errors)
+        finally:
+            window.close()
+
+    def test_terminal_plugin_launches_at_active_folder_and_reports_errors(self):
+        window = MacXplorer()
+        plugin = window.plugin_manager.get_plugin("terminal")
+        self.assertIsNotNone(plugin)
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                self.assertTrue(window.active_pane().navigate_to(directory))
+                with (
+                    patch("plugins.terminal_plugin.sys.platform", "darwin"),
+                    patch("plugins.terminal_plugin.subprocess.run") as run,
+                ):
+                    plugin.open_terminal_here()
+
+                command = run.call_args.args[0]
+                self.assertEqual(command[0:2], ["/usr/bin/osascript", "-e"])
+                self.assertIn("quoted form of targetPath", command[2])
+                self.assertEqual(command[3], str(Path(directory).resolve()))
+                self.assertTrue(run.call_args.kwargs["check"])
+
+                with (
+                    patch("plugins.terminal_plugin.sys.platform", "darwin"),
+                    patch(
+                        "plugins.terminal_plugin.subprocess.run",
+                        side_effect=subprocess.CalledProcessError(
+                            1, ["osascript"], stderr="Automation denied"
+                        ),
+                    ),
+                    patch.object(QMessageBox, "critical") as critical,
+                    self.assertLogs("plugins.terminal_plugin", level="ERROR"),
+                ):
+                    plugin.open_terminal_here()
+                    critical.assert_called_once()
+                    self.assertIn("Automation denied", critical.call_args.args[2])
         finally:
             window.close()
 
@@ -266,12 +309,14 @@ class PluginManagerSmokeTest(unittest.TestCase):
                 window.clipboard_paths = [source]
                 window.clipboard_operation = "copy"
                 window.paste_item()
+                self._wait_for_transfer(window)
                 copied = target / source.name
                 self.assertEqual(copied.read_text(encoding="utf-8"), "hello")
                 copied.unlink()
 
                 window.clipboard_operation = "cut"
                 window.paste_item()
+                self._wait_for_transfer(window)
                 self.assertFalse(source.exists())
                 self.assertTrue(copied.exists())
                 self.assertEqual(window.clipboard_paths, [])
@@ -283,6 +328,7 @@ class PluginManagerSmokeTest(unittest.TestCase):
                 QApplication.clipboard().setMimeData(mime_data)
                 window.clipboard_paths = []
                 window.paste_item()
+                self._wait_for_transfer(window)
                 self.assertEqual(
                     (target / external_source.name).read_text(encoding="utf-8"),
                     "from Finder",
@@ -317,6 +363,84 @@ class PluginManagerSmokeTest(unittest.TestCase):
                 self.assertFalse((photo_folder / "nested.zip").exists())
         finally:
             window.close()
+
+    def test_cancelled_file_transfer_does_not_publish_partial_copy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.txt"
+            destination = root / "destination.txt"
+            source.write_bytes(b"x" * (8 * 1024 * 1024))
+            thread = FileTransferThread(
+                [TransferTask(source, destination, "copy")]
+            )
+            thread.progress.connect(
+                lambda _thread, _completed, _total, _path, copied_bytes: (
+                    thread.cancel() if copied_bytes else None
+                ),
+                Qt.ConnectionType.DirectConnection,
+            )
+            thread.start()
+            deadline = time.monotonic() + 5
+            while thread.isRunning() and time.monotonic() < deadline:
+                self.application.processEvents()
+                QTest.qWait(5)
+            self.assertTrue(thread.wait(1000))
+            self.assertIsNotNone(thread.result)
+            self.assertTrue(thread.result.cancelled)
+            self.assertEqual(thread.result.completed, ())
+            self.assertTrue(source.exists())
+            self.assertFalse(destination.exists())
+            self.assertEqual(list(root.iterdir()), [source])
+
+    def test_transfer_dialog_keeps_cancellation_status_until_worker_finishes(self):
+        dialog = FileTransferDialog(2, lambda: None)
+        dialog.set_progress(1, 2, "/tmp/source.txt", 1024)
+        self.assertIn("Transferring source.txt", dialog.label.text())
+
+        dialog.set_cancel_requested()
+        dialog.set_progress(1, 2, "/tmp/source.txt", 2048)
+
+        self.assertFalse(dialog.cancel_button.isEnabled())
+        self.assertIn("Cancellation requested", dialog.label.text())
+        self.assertEqual(dialog.progress_bar.value(), 1)
+
+    def test_cancelled_transfer_stops_before_the_next_item(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first_source = root / "first.txt"
+            second_source = root / "second.txt"
+            first_destination = root / "destination-first.txt"
+            second_destination = root / "destination-second.txt"
+            first_source.write_text("first", encoding="utf-8")
+            second_source.write_text("second", encoding="utf-8")
+            thread = FileTransferThread(
+                [
+                    TransferTask(first_source, first_destination, "copy"),
+                    TransferTask(second_source, second_destination, "copy"),
+                ]
+            )
+            thread.progress.connect(
+                lambda _thread, completed, _total, _path, _bytes: (
+                    thread.cancel() if completed == 1 else None
+                ),
+                Qt.ConnectionType.DirectConnection,
+            )
+            thread.start()
+            self.assertTrue(thread.wait(5000))
+            self.assertIsNotNone(thread.result)
+            self.assertTrue(thread.result.cancelled)
+            self.assertEqual(len(thread.result.completed), 1)
+            self.assertEqual(first_destination.read_text(encoding="utf-8"), "first")
+            self.assertFalse(second_destination.exists())
+            self.assertTrue(second_source.exists())
+
+    def _wait_for_transfer(self, window):
+        for _ in range(500):
+            self.application.processEvents()
+            if window._transfer_thread is None:
+                return
+            QTest.qWait(10)
+        self.fail("File transfer did not finish within the test timeout.")
 
     def test_image_browsing_uses_file_model_filters(self):
         window = MacXplorer()
